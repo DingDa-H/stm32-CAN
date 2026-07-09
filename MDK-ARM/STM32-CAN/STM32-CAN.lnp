@@ -1,0 +1,28 @@
+--cpu Cortex-M3
+"stm32-can\startup_stm32f103xb.o"
+"stm32-can\main.o"
+"stm32-can\stm32f1xx_it.o"
+"stm32-can\stm32f1xx_hal_msp.o"
+"stm32-can\stm32f1xx_hal_gpio_ex.o"
+"stm32-can\stm32f1xx_hal_can.o"
+"stm32-can\stm32f1xx_hal.o"
+"stm32-can\stm32f1xx_hal_rcc.o"
+"stm32-can\stm32f1xx_hal_rcc_ex.o"
+"stm32-can\stm32f1xx_hal_gpio.o"
+"stm32-can\stm32f1xx_hal_dma.o"
+"stm32-can\stm32f1xx_hal_cortex.o"
+"stm32-can\stm32f1xx_hal_pwr.o"
+"stm32-can\stm32f1xx_hal_flash.o"
+"stm32-can\stm32f1xx_hal_flash_ex.o"
+"stm32-can\stm32f1xx_hal_exti.o"
+"stm32-can\system_stm32f1xx.o"
+"stm32-can\task.o"
+"stm32-can\oled_device.o"
+"stm32-can\oled_font.o"
+"stm32-can\can.o"
+"stm32-can\botton.o"
+"stm32-can\button_mid.o"
+--library_type=microlib --strict --scatter "STM32-CAN\STM32-CAN.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "STM32-CAN.map" -o STM32-CAN\STM32-CAN.axf

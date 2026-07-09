@@ -1,0 +1,194 @@
+#include "stm32f1xx_hal.h"
+#include <can.h>
+#include "string.h"
+#include <stdint.h>
+#include <oled_device.h>
+#include "button_mid.h"
+#include "task.h"
+#include <stdio.h>
+
+
+extern CAN_HandleTypeDef hcan;
+
+// 全局接收缓存
+
+static CAN_RxHeaderTypeDef s_rxHeader;
+
+static uint8_t s_aucRxBuf[8];
+static uint8_t s_Txdata[8] = "abcd";
+
+static uint32_t s_ulRxId;
+static uint32_t s_ulTxId = 0x555;
+static uint8_t  s_ucRxLength;
+static uint8_t  s_ucTxLength = 4;
+//static uint32_t s_IDE;
+//static uint32_t s_RTR;
+
+// service/task.c 应用层
+void vCanService_Init(void)
+{
+	CAN_FilterTypeDef filter;
+	// 20260706,暂时配置为全通(32位屏蔽模式)
+	filter.FilterBank 				=0;						//滤波器编号0-13
+	filter.FilterActivation 		=ENABLE;				//是否启用该滤波器
+	filter.FilterFIFOAssignment 	=CAN_FILTER_FIFO0;		// CAN_FILTER_FIFO0 或 CAN_FILTER_FIFO1
+	filter.FilterIdHigh 			=0x0000;				/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
+	filter.FilterIdLow 				=0x0000;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
+	filter.FilterMaskIdHigh 		=0x0000;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
+	filter.FilterMaskIdLow 			=0x0000;				/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
+	filter.FilterScale 				=CAN_FILTERSCALE_32BIT;	/* 滤波器位宽：16 位或 32 位 */
+	filter.FilterMode 				=CAN_FILTERMODE_IDMASK;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
+	filter.SlaveStartFilterBank 	=0;
+	HAL_CAN_ConfigFilter(&hcan, &filter);
+	
+	HAL_CAN_Start(&hcan);
+//	HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING);	//激活中断的
+
+}
+
+
+/**
+ * @brief 		OLED初始化函数
+ * @version 	
+ * @data 			
+ * @note 		
+ */
+void vOledInit(void)
+{
+	stOledStaticParamTdf stInit;
+	stInit.pstSclGpioBase	= GPIOB;
+	stInit.pstSdaGpioBase	= GPIOB;
+	stInit.usSclGpioPin		= GPIO_PIN_8;
+	stInit.usSdaGpioPin		= GPIO_PIN_9;
+	
+	vOledDeviceInit(&stInit, OLED);
+}
+
+/**
+ * @brief 		物理按键初始化
+ * @param 	
+ * @data 		
+ * @note 		
+ */
+void Button_Init(void)
+{
+	stBtnStaticParamTdf stBtnInit;
+	stBtnInit.emButLevel					= emBtnActiveLevel_Low;
+	stBtnInit.pstGpioBase					= GPIOB;
+	stBtnInit.ulDebounceMs 					= 20;
+	stBtnInit.ulLongPressMs					= 100000;			//不允许长按和双击
+	stBtnInit.ulDoubleClickMs				= 10;
+	stBtnInit.usGpioPin						= GPIO_PIN_1;
+	
+	vBtnParamInit(&stBtnInit,BUTTON_DOWN);
+	
+	stBtnInit.emButLevel					= emBtnActiveLevel_Low;
+	stBtnInit.pstGpioBase					= GPIOB;
+	stBtnInit.ulDebounceMs 					= 20;
+	stBtnInit.ulLongPressMs					= 100000;
+	stBtnInit.ulDoubleClickMs				= 10;
+	stBtnInit.usGpioPin						= GPIO_PIN_11;
+	
+	vBtnParamInit(&stBtnInit,BUTTON_UP);
+	
+	stBtnInit.emButLevel					= emBtnActiveLevel_High;
+	stBtnInit.pstGpioBase					= GPIOB;
+	stBtnInit.ulDebounceMs 					= 20;
+	stBtnInit.ulLongPressMs					= 100000;
+	stBtnInit.ulDoubleClickMs				= 10;
+	stBtnInit.usGpioPin						= GPIO_PIN_12;
+	
+	vBtnParamInit(&stBtnInit,BUTTON_ENABLE);
+	
+	stBtnInit.emButLevel					= emBtnActiveLevel_High;
+	stBtnInit.pstGpioBase					= GPIOB;
+	stBtnInit.ulDebounceMs 					= 20;
+	stBtnInit.ulLongPressMs					= 100000;
+	stBtnInit.ulDoubleClickMs				= 200;
+	stBtnInit.usGpioPin						= GPIO_PIN_13;
+	
+	vBtnParamInit(&stBtnInit,BUTTON_CANCEL);
+}
+
+/**
+ * @brief 		接收处理函数
+ * @param 	
+ * @retval 		
+ * @note 		需要轮询
+ */
+void vMyCanExecute(void)
+{
+	if(ucMyCan_ReceiveFlag() == 1)
+	{
+		vMyCan_Receive(&s_rxHeader,s_aucRxBuf);
+		if(s_rxHeader.IDE == CAN_ID_STD)
+		{
+			s_ulRxId = s_rxHeader.StdId;
+		}
+		else
+		{
+			s_ulRxId = s_rxHeader.ExtId;
+		}
+		if(s_rxHeader.RTR == CAN_RTR_DATA)
+		{
+			
+			s_ucRxLength = s_rxHeader.DLC;
+		}
+		else
+		{
+			;
+		}
+	}
+}
+
+
+void vtask(void)
+{
+	vBtnExecute(); 
+	
+	
+	vOledClearBuffer(OLED);
+	vOledWriteStringToBuffer(8,0,(uint8_t*)"TXID:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(8,16,(uint8_t*)"RXID:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(8,32,(uint8_t*)"Len:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(8,48,(uint8_t*)"DATA:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+	
+	
+	// 复用之前的代码，规定BUTTON_UP是发送。
+	emButEventTdf emEventUp  		 = emBtnGetCurEvent(BUTTON_UP);
+    emButEventTdf emEventDown		 = emBtnGetCurEvent(BUTTON_DOWN);
+	emButEventTdf emEventEnable 	 = emBtnGetCurEvent(BUTTON_ENABLE);
+	emButEventTdf emEventCancel   	 = emBtnGetCurEvent(BUTTON_CANCEL);
+	if (emEventUp == emBtnEvent_Click) {
+		vMyCan_Transmit(s_ulTxId,s_ucTxLength,s_Txdata,CAN_ID_STD,CAN_RTR_DATA);
+		s_Txdata[0]++;
+		s_Txdata[1]++;
+		s_Txdata[2]++;
+		s_Txdata[3]++;
+		
+		vBtnEventClear(BUTTON_UP);					// 仅在触发事件后清除，避免提前清除
+		
+	}
+	if (emEventDown == emBtnEvent_Click) {
+		
+		vBtnEventClear(BUTTON_DOWN);
+	}
+	vMyCanExecute();								// 接收处理函数
+	
+	static uint8_t s_aucStrBuf[16];
+
+	/* 显示 TxID */
+	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulTxId);
+	vOledWriteStringToBuffer(48, 0, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);	
+
+	/* 显示 RxID */
+	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulRxId);
+	vOledWriteStringToBuffer(48, 16, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);
+
+	/* 显示 Length */
+	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "%d", s_ucRxLength);
+	vOledWriteStringToBuffer(48, 32, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);
+
+	vOledWriteStringToBuffer(48,48,(uint8_t*)s_aucRxBuf,emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+	vOledRefreshFromBuffer(OLED);
+}

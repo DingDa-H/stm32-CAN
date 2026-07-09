@@ -1,0 +1,53 @@
+
+#include "stm32f1xx_hal.h"
+#include <can.h>
+	
+extern CAN_HandleTypeDef hcan;
+
+/**
+ * @brief   发送 CAN 标准数据帧，带短暂重试
+ * @param   Id        标准帧/扩展帧 ID
+ * @param   Length    数据数量 (1~8)(1-8字节有效载荷)
+ * @param   Data      需要发送的数据的指针
+ * @param   IDE       扩展标志位
+ * @param   RTR       遥控标志位
+ * @note	仅进行单次发送，发送失败需要重复发送的处理放在应用层
+ */
+void vMyCan_Transmit(uint32_t ID,uint8_t Length,uint8_t *Data,uint32_t IDE,uint32_t RTR)
+{
+	CAN_TxHeaderTypeDef CAN_TxHeader;
+//	CAN_TxHeader.StdId=ID;					//标准id
+//	CAN_TxHeader.ExtId=ID;					//扩展id
+	CAN_TxHeader.IDE=IDE;					//扩展标志位,选择标准格式则上面扩展id无效
+	CAN_TxHeader.DLC=Length;				//数据段长度
+	CAN_TxHeader.RTR=RTR;					//遥控标志位
+	CAN_TxHeader.TransmitGlobalTime=DISABLE;//精确测量报文发送时刻
+	
+	if (IDE == CAN_ID_STD) {
+        CAN_TxHeader.StdId = ID;
+    } else {
+        CAN_TxHeader.ExtId = ID;
+    }
+	uint32_t ulTxMailbox;					//返回发送所使用的邮箱号
+	HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, Data, &ulTxMailbox);
+}
+
+/**
+ * @brief   查询当前空闲邮箱数量函数
+ * @note	用于轮询是否接收到数据，接收到返回1
+ */
+uint8_t ucMyCan_ReceiveFlag(void)
+{
+	if(HAL_CAN_GetRxFifoFillLevel(&hcan,CAN_RX_FIFO0) > 0)
+	{
+		return 1;
+	}
+	return 0;
+}
+
+
+void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData)
+{
+	
+	HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,pHeader,RxData);
+}
