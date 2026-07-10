@@ -23,28 +23,28 @@ static uint8_t s_Txdata[8] = {0x55,0x66,0x48,0x77};
 // 全局发送结构体（使用指定初始化器，与 can.h 中字段顺序一致）
 stCanTxParamTdf stTxMsgArray[] =
 {
-	{.ulID    = 0x1158666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x1258666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x55F,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x666,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x1358666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_REMOTE,},
-	{.ulID    = 0x666,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
+	{.ulID    = 0x123,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x234,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x345,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x456,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x567,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x678,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
 };
 static uint8_t i = 0;						//用来表示stTxMsgArray的第i项
 // service/task.c 应用层
 void vCanService_Init(void)
 {
 	CAN_FilterTypeDef filter;
-	// 20260706,暂时配置为全通(32位屏蔽模式)
+	// 202607010,配置为16位列表模式
 	filter.FilterBank 				=0;						//滤波器编号0-13
 	filter.FilterActivation 		=ENABLE;				//是否启用该滤波器
 	filter.FilterFIFOAssignment 	=CAN_FILTER_FIFO0;		// CAN_FILTER_FIFO0 或 CAN_FILTER_FIFO1
-	filter.FilterIdHigh 			=0x0000;				/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
-	filter.FilterIdLow 				=0x0000;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
-	filter.FilterMaskIdHigh 		=0x0000;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
+	filter.FilterIdHigh 			=(0x234<<5)|0x10;			/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
+	filter.FilterIdLow 				=0x345<<5 ;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
+	filter.FilterMaskIdHigh 		=0x567<<5 ;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
 	filter.FilterMaskIdLow 			=0x0000;				/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
-	filter.FilterScale 				=CAN_FILTERSCALE_32BIT;	/* 滤波器位宽：16 位或 32 位 */
-	filter.FilterMode 				=CAN_FILTERMODE_IDMASK;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
+	filter.FilterScale 				=CAN_FILTERSCALE_16BIT;	/* 滤波器位宽：16 位或 32 位 */
+	filter.FilterMode 				=CAN_FILTERMODE_IDLIST;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
 	filter.SlaveStartFilterBank 	=0;
 	HAL_CAN_ConfigFilter(&hcan, &filter);
 	
@@ -194,14 +194,13 @@ void vtask(void)
 		}
 		else
 		{
-			vOledWriteStringToBuffer(6,24,(uint8_t*)"Len:  0",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			vOledWriteStringToBuffer(6,24,(uint8_t*)"Len: 0",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			vOledWriteStringToBuffer(48,0,(uint8_t*)"Remote",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		}
 		/* 显示 RxID */
 		snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulRxId);
 		vOledWriteStringToBuffer(36, 12, s_aucStrBuf, emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
 
-		
 	}
 	vOledRefreshFromBuffer(OLED);
 }

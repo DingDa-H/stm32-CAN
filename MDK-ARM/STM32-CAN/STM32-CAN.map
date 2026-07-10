@@ -1009,22 +1009,22 @@ Image Symbol Table
     i.vBtnSetucDoubleWait                    0x0800206c   Section        0  botton.o(i.vBtnSetucDoubleWait)
     i.vBtnStatusUpdata                       0x08002080   Section        0  botton.o(i.vBtnStatusUpdata)
     i.vCanService_Init                       0x0800214c   Section        0  task.o(i.vCanService_Init)
-    i.vMyCan_Receive                         0x08002184   Section        0  can.o(i.vMyCan_Receive)
-    i.vMyCan_Transmit                        0x0800219c   Section        0  can.o(i.vMyCan_Transmit)
-    i.vOledClearBuffer                       0x080021d8   Section        0  oled_device.o(i.vOledClearBuffer)
-    i.vOledCmdInit                           0x080021f8   Section        0  oled_device.o(i.vOledCmdInit)
-    i.vOledDeviceInit                        0x080022e0   Section        0  oled_device.o(i.vOledDeviceInit)
-    i.vOledInit                              0x08002304   Section        0  task.o(i.vOledInit)
-    i.vOledRefreshFromBuffer                 0x0800232c   Section        0  oled_device.o(i.vOledRefreshFromBuffer)
-    i.vOledWriteHexToBuffer                  0x08002378   Section        0  oled_device.o(i.vOledWriteHexToBuffer)
-    i.vOledWriteOneCharToBuffer              0x08002418   Section        0  oled_device.o(i.vOledWriteOneCharToBuffer)
-    i.vOledWriteStringToBuffer               0x0800263c   Section        0  oled_device.o(i.vOledWriteStringToBuffer)
-    i.vtask                                  0x08002684   Section        0  task.o(i.vtask)
-    .constdata                               0x080028b0   Section       18  stm32f1xx_hal_rcc.o(.constdata)
-    aPLLMULFactorTable                       0x080028b0   Data          16  stm32f1xx_hal_rcc.o(.constdata)
-    aPredivFactorTable                       0x080028c0   Data           2  stm32f1xx_hal_rcc.o(.constdata)
-    .constdata                               0x080028c2   Section       24  system_stm32f1xx.o(.constdata)
-    .constdata                               0x080028da   Section     6080  oled_font.o(.constdata)
+    i.vMyCan_Receive                         0x08002194   Section        0  can.o(i.vMyCan_Receive)
+    i.vMyCan_Transmit                        0x080021ac   Section        0  can.o(i.vMyCan_Transmit)
+    i.vOledClearBuffer                       0x080021e8   Section        0  oled_device.o(i.vOledClearBuffer)
+    i.vOledCmdInit                           0x08002208   Section        0  oled_device.o(i.vOledCmdInit)
+    i.vOledDeviceInit                        0x080022f0   Section        0  oled_device.o(i.vOledDeviceInit)
+    i.vOledInit                              0x08002314   Section        0  task.o(i.vOledInit)
+    i.vOledRefreshFromBuffer                 0x0800233c   Section        0  oled_device.o(i.vOledRefreshFromBuffer)
+    i.vOledWriteHexToBuffer                  0x08002388   Section        0  oled_device.o(i.vOledWriteHexToBuffer)
+    i.vOledWriteOneCharToBuffer              0x08002428   Section        0  oled_device.o(i.vOledWriteOneCharToBuffer)
+    i.vOledWriteStringToBuffer               0x0800264c   Section        0  oled_device.o(i.vOledWriteStringToBuffer)
+    i.vtask                                  0x08002694   Section        0  task.o(i.vtask)
+    .constdata                               0x080028c0   Section       18  stm32f1xx_hal_rcc.o(.constdata)
+    aPLLMULFactorTable                       0x080028c0   Data          16  stm32f1xx_hal_rcc.o(.constdata)
+    aPredivFactorTable                       0x080028d0   Data           2  stm32f1xx_hal_rcc.o(.constdata)
+    .constdata                               0x080028d2   Section       24  system_stm32f1xx.o(.constdata)
+    .constdata                               0x080028ea   Section     6080  oled_font.o(.constdata)
     .data                                    0x20000000   Section        9  stm32f1xx_hal.o(.data)
     .data                                    0x2000000c   Section        4  system_stm32f1xx.o(.data)
     .data                                    0x20000010   Section      145  task.o(.data)
@@ -1229,25 +1229,25 @@ Image Symbol Table
     vBtnSetPressTick                         0x08002059   Thumb Code    14  botton.o(i.vBtnSetPressTick)
     vBtnSetucDoubleWait                      0x0800206d   Thumb Code    16  botton.o(i.vBtnSetucDoubleWait)
     vBtnStatusUpdata                         0x08002081   Thumb Code   198  botton.o(i.vBtnStatusUpdata)
-    vCanService_Init                         0x0800214d   Thumb Code    52  task.o(i.vCanService_Init)
-    vMyCan_Receive                           0x08002185   Thumb Code    20  can.o(i.vMyCan_Receive)
-    vMyCan_Transmit                          0x0800219d   Thumb Code    54  can.o(i.vMyCan_Transmit)
-    vOledClearBuffer                         0x080021d9   Thumb Code    28  oled_device.o(i.vOledClearBuffer)
-    vOledCmdInit                             0x080021f9   Thumb Code   230  oled_device.o(i.vOledCmdInit)
-    vOledDeviceInit                          0x080022e1   Thumb Code    30  oled_device.o(i.vOledDeviceInit)
-    vOledInit                                0x08002305   Thumb Code    36  task.o(i.vOledInit)
-    vOledRefreshFromBuffer                   0x0800232d   Thumb Code    70  oled_device.o(i.vOledRefreshFromBuffer)
-    vOledWriteHexToBuffer                    0x08002379   Thumb Code   160  oled_device.o(i.vOledWriteHexToBuffer)
-    vOledWriteOneCharToBuffer                0x08002419   Thumb Code   530  oled_device.o(i.vOledWriteOneCharToBuffer)
-    vOledWriteStringToBuffer                 0x0800263d   Thumb Code    72  oled_device.o(i.vOledWriteStringToBuffer)
-    vtask                                    0x08002685   Thumb Code   450  task.o(i.vtask)
-    AHBPrescTable                            0x080028c2   Data          16  system_stm32f1xx.o(.constdata)
-    APBPrescTable                            0x080028d2   Data           8  system_stm32f1xx.o(.constdata)
-    c_a2ucOledFont_Ascii_1206                0x080028da   Data        1140  oled_font.o(.constdata)
-    c_a2ucOledFont_Ascii_1608                0x08002d4e   Data        1520  oled_font.o(.constdata)
-    c_a2ucOledFont_Ascii_2412                0x0800333e   Data        3420  oled_font.o(.constdata)
-    Region$$Table$$Base                      0x0800409c   Number         0  anon$$obj.o(Region$$Table)
-    Region$$Table$$Limit                     0x080040bc   Number         0  anon$$obj.o(Region$$Table)
+    vCanService_Init                         0x0800214d   Thumb Code    66  task.o(i.vCanService_Init)
+    vMyCan_Receive                           0x08002195   Thumb Code    20  can.o(i.vMyCan_Receive)
+    vMyCan_Transmit                          0x080021ad   Thumb Code    54  can.o(i.vMyCan_Transmit)
+    vOledClearBuffer                         0x080021e9   Thumb Code    28  oled_device.o(i.vOledClearBuffer)
+    vOledCmdInit                             0x08002209   Thumb Code   230  oled_device.o(i.vOledCmdInit)
+    vOledDeviceInit                          0x080022f1   Thumb Code    30  oled_device.o(i.vOledDeviceInit)
+    vOledInit                                0x08002315   Thumb Code    36  task.o(i.vOledInit)
+    vOledRefreshFromBuffer                   0x0800233d   Thumb Code    70  oled_device.o(i.vOledRefreshFromBuffer)
+    vOledWriteHexToBuffer                    0x08002389   Thumb Code   160  oled_device.o(i.vOledWriteHexToBuffer)
+    vOledWriteOneCharToBuffer                0x08002429   Thumb Code   530  oled_device.o(i.vOledWriteOneCharToBuffer)
+    vOledWriteStringToBuffer                 0x0800264d   Thumb Code    72  oled_device.o(i.vOledWriteStringToBuffer)
+    vtask                                    0x08002695   Thumb Code   450  task.o(i.vtask)
+    AHBPrescTable                            0x080028d2   Data          16  system_stm32f1xx.o(.constdata)
+    APBPrescTable                            0x080028e2   Data           8  system_stm32f1xx.o(.constdata)
+    c_a2ucOledFont_Ascii_1206                0x080028ea   Data        1140  oled_font.o(.constdata)
+    c_a2ucOledFont_Ascii_1608                0x08002d5e   Data        1520  oled_font.o(.constdata)
+    c_a2ucOledFont_Ascii_2412                0x0800334e   Data        3420  oled_font.o(.constdata)
+    Region$$Table$$Base                      0x080040ac   Number         0  anon$$obj.o(Region$$Table)
+    Region$$Table$$Limit                     0x080040cc   Number         0  anon$$obj.o(Region$$Table)
     uwTick                                   0x20000000   Data           4  stm32f1xx_hal.o(.data)
     uwTickPrio                               0x20000004   Data           4  stm32f1xx_hal.o(.data)
     uwTickFreq                               0x20000008   Data           1  stm32f1xx_hal.o(.data)
@@ -1265,9 +1265,9 @@ Memory Map of the image
 
   Image Entry point : 0x080000ed
 
-  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x00004160, Max: 0x00010000, ABSOLUTE)
+  Load Region LR_IROM1 (Base: 0x08000000, Size: 0x00004170, Max: 0x00010000, ABSOLUTE)
 
-    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x000040bc, Max: 0x00010000, ABSOLUTE)
+    Execution Region ER_IROM1 (Exec base: 0x08000000, Load base: 0x08000000, Size: 0x000040cc, Max: 0x00010000, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
@@ -1376,35 +1376,35 @@ Memory Map of the image
     0x08002058   0x08002058   0x00000014   Code   RO         1878    i.vBtnSetPressTick  botton.o
     0x0800206c   0x0800206c   0x00000014   Code   RO         1879    i.vBtnSetucDoubleWait  botton.o
     0x08002080   0x08002080   0x000000cc   Code   RO         1880    i.vBtnStatusUpdata  botton.o
-    0x0800214c   0x0800214c   0x00000038   Code   RO         1584    i.vCanService_Init  task.o
-    0x08002184   0x08002184   0x00000018   Code   RO         1827    i.vMyCan_Receive    can.o
-    0x0800219c   0x0800219c   0x0000003c   Code   RO         1828    i.vMyCan_Transmit   can.o
-    0x080021d8   0x080021d8   0x00000020   Code   RO         1662    i.vOledClearBuffer  oled_device.o
-    0x080021f8   0x080021f8   0x000000e6   Code   RO         1664    i.vOledCmdInit      oled_device.o
-    0x080022de   0x080022de   0x00000002   PAD
-    0x080022e0   0x080022e0   0x00000024   Code   RO         1665    i.vOledDeviceInit   oled_device.o
-    0x08002304   0x08002304   0x00000028   Code   RO         1585    i.vOledInit         task.o
-    0x0800232c   0x0800232c   0x0000004c   Code   RO         1670    i.vOledRefreshFromBuffer  oled_device.o
-    0x08002378   0x08002378   0x000000a0   Code   RO         1671    i.vOledWriteHexToBuffer  oled_device.o
-    0x08002418   0x08002418   0x00000224   Code   RO         1672    i.vOledWriteOneCharToBuffer  oled_device.o
-    0x0800263c   0x0800263c   0x00000048   Code   RO         1673    i.vOledWriteStringToBuffer  oled_device.o
-    0x08002684   0x08002684   0x0000022c   Code   RO         1586    i.vtask             task.o
-    0x080028b0   0x080028b0   0x00000012   Data   RO          726    .constdata          stm32f1xx_hal_rcc.o
-    0x080028c2   0x080028c2   0x00000018   Data   RO         1547    .constdata          system_stm32f1xx.o
-    0x080028da   0x080028da   0x000017c0   Data   RO         1811    .constdata          oled_font.o
-    0x0800409a   0x0800409a   0x00000002   PAD
-    0x0800409c   0x0800409c   0x00000020   Data   RO         2345    Region$$Table       anon$$obj.o
+    0x0800214c   0x0800214c   0x00000048   Code   RO         1584    i.vCanService_Init  task.o
+    0x08002194   0x08002194   0x00000018   Code   RO         1827    i.vMyCan_Receive    can.o
+    0x080021ac   0x080021ac   0x0000003c   Code   RO         1828    i.vMyCan_Transmit   can.o
+    0x080021e8   0x080021e8   0x00000020   Code   RO         1662    i.vOledClearBuffer  oled_device.o
+    0x08002208   0x08002208   0x000000e6   Code   RO         1664    i.vOledCmdInit      oled_device.o
+    0x080022ee   0x080022ee   0x00000002   PAD
+    0x080022f0   0x080022f0   0x00000024   Code   RO         1665    i.vOledDeviceInit   oled_device.o
+    0x08002314   0x08002314   0x00000028   Code   RO         1585    i.vOledInit         task.o
+    0x0800233c   0x0800233c   0x0000004c   Code   RO         1670    i.vOledRefreshFromBuffer  oled_device.o
+    0x08002388   0x08002388   0x000000a0   Code   RO         1671    i.vOledWriteHexToBuffer  oled_device.o
+    0x08002428   0x08002428   0x00000224   Code   RO         1672    i.vOledWriteOneCharToBuffer  oled_device.o
+    0x0800264c   0x0800264c   0x00000048   Code   RO         1673    i.vOledWriteStringToBuffer  oled_device.o
+    0x08002694   0x08002694   0x0000022c   Code   RO         1586    i.vtask             task.o
+    0x080028c0   0x080028c0   0x00000012   Data   RO          726    .constdata          stm32f1xx_hal_rcc.o
+    0x080028d2   0x080028d2   0x00000018   Data   RO         1547    .constdata          system_stm32f1xx.o
+    0x080028ea   0x080028ea   0x000017c0   Data   RO         1811    .constdata          oled_font.o
+    0x080040aa   0x080040aa   0x00000002   PAD
+    0x080040ac   0x080040ac   0x00000020   Data   RO         2345    Region$$Table       anon$$obj.o
 
 
-    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x080040bc, Size: 0x000009a8, Max: 0x00005000, ABSOLUTE)
+    Execution Region RW_IRAM1 (Exec base: 0x20000000, Load base: 0x080040cc, Size: 0x000009a8, Max: 0x00005000, ABSOLUTE)
 
     Exec Addr    Load Addr    Size         Type   Attr      Idx    E Section Name        Object
 
-    0x20000000   0x080040bc   0x00000009   Data   RW          562    .data               stm32f1xx_hal.o
-    0x20000009   0x080040c5   0x00000003   PAD
-    0x2000000c   0x080040c8   0x00000004   Data   RW         1548    .data               system_stm32f1xx.o
-    0x20000010   0x080040cc   0x00000091   Data   RW         1588    .data               task.o
-    0x200000a1   0x0800415d   0x00000003   PAD
+    0x20000000   0x080040cc   0x00000009   Data   RW          562    .data               stm32f1xx_hal.o
+    0x20000009   0x080040d5   0x00000003   PAD
+    0x2000000c   0x080040d8   0x00000004   Data   RW         1548    .data               system_stm32f1xx.o
+    0x20000010   0x080040dc   0x00000091   Data   RW         1588    .data               task.o
+    0x200000a1   0x0800416d   0x00000003   PAD
     0x200000a4        -       0x00000028   Zero   RW           18    .bss                main.o
     0x200000cc        -       0x0000002c   Zero   RW         1587    .bss                task.o
     0x200000f8        -       0x00000410   Zero   RW         1674    .bss                oled_device.o
@@ -1434,10 +1434,10 @@ Image component sizes
       1672         72         18          0          0       4256   stm32f1xx_hal_rcc.o
         34          0          0          0          0       3770   stm32f1xx_it.o
          2          0         24          4          0       1071   system_stm32f1xx.o
-       852        132          0        145         44       4092   task.o
+       868        134          0        145         44       4104   task.o
 
     ----------------------------------------------------------------------
-      8666        494       6392        164       2308     480479   Object Totals
+      8682        496       6392        164       2308     480491   Object Totals
          0          0         32          0          0          0   (incl. Generated)
         14          0          2          6          0          0   (incl. Padding)
 
@@ -1482,15 +1482,15 @@ Image component sizes
 
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   
 
-     10180        558       6392        164       2308     476895   Grand Totals
-     10180        558       6392        164       2308     476895   ELF Image Totals
-     10180        558       6392        164          0          0   ROM Totals
+     10196        560       6392        164       2308     476907   Grand Totals
+     10196        560       6392        164       2308     476907   ELF Image Totals
+     10196        560       6392        164          0          0   ROM Totals
 
 ==============================================================================
 
-    Total RO  Size (Code + RO Data)                16572 (  16.18kB)
+    Total RO  Size (Code + RO Data)                16588 (  16.20kB)
     Total RW  Size (RW Data + ZI Data)              2472 (   2.41kB)
-    Total ROM Size (Code + RO Data + RW Data)      16736 (  16.34kB)
+    Total ROM Size (Code + RO Data + RW Data)      16752 (  16.36kB)
 
 ==============================================================================
 
