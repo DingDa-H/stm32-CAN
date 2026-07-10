@@ -90,5 +90,6 @@ void vOledDeviceInit(stOledStaticParamTdf *pstInit, emOledDevNumTdf emDevNum);
 void vOledDrawRectangle(uint32_t x, uint32_t y,uint32_t ulLenght,emOledFontSizeTdf emFontSize,emOledDevNumTdf emDevNum);
 void vOledDrawArrow(uint32_t x, uint32_t y,emOledFontSizeTdf emFontSize,emOledDevNumTdf emDevNum);
 void vOledClearBuffer(emOledDevNumTdf emDevNum);
+void vOledWriteHexToBuffer(uint16_t x, uint16_t y, const uint8_t *pucData, uint8_t ucLength, emOledFontSizeTdf emFontSize, emOledPixelShowModeTdf emMode, emOledDevNumTdf emDevNum);
 
 #endif

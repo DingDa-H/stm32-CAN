@@ -555,7 +555,46 @@ void vOledClearBuffer(emOledDevNumTdf emDevNum)
            OLED_BUFFER_WIDTH * OLED_BUFFER_HIGH);
 }
 
+/// @brief      向缓存写入十六进制数据
+///
+/// @param      x           ：X 坐标，取值范围 0 ~ OLED_POINT_WIDTH - 1
+///             y           ：Y 坐标，取值范围 0 ~ OLED_POINT_HEIGHT - 1
+///             pucData     ：要显示的字节数组首地址
+///             ucLength    ：字节数组长度
+///             emFontSize  ：字号，见 emOledFontSizeTdf 定义
+///             emMode      ：显示模式，见 emOledPixelShowModeTdf 定义
+///             emDevNum    ：设备号
+///
+/// @note       每个字节显示为 2 位十六进制字符，字节之间用空格分隔
+void vOledWriteHexToBuffer(uint16_t x, uint16_t y, const uint8_t *pucData, uint8_t ucLength, emOledFontSizeTdf emFontSize, emOledPixelShowModeTdf emMode, emOledDevNumTdf emDevNum)
+{
+	uint8_t i;
+	uint8_t ucNibble;
+	uint8_t ucChar;
+	uint16_t usX = x;
 
+	for(i = 0; i < ucLength; i++)
+	{
+		/* 高 4 位 */
+		ucNibble = (pucData[i] >> 4) & 0x0F;
+		ucChar = (ucNibble < 10) ? ('0' + ucNibble) : ('A' + ucNibble - 10);
+		vOledWriteOneCharToBuffer(usX, y, ucChar, emFontSize, emMode, emDevNum);
+		usX += emFontSize >> 1;
+
+		/* 低 4 位 */
+		ucNibble = pucData[i] & 0x0F;
+		ucChar = (ucNibble < 10) ? ('0' + ucNibble) : ('A' + ucNibble - 10);
+		vOledWriteOneCharToBuffer(usX, y, ucChar, emFontSize, emMode, emDevNum);
+		usX += emFontSize >> 1;
+
+		/* 空格分隔（最后一个字节后不加） */
+		if(i < ucLength - 1)
+		{
+			vOledWriteOneCharToBuffer(usX, y, ' ', emFontSize, emMode, emDevNum);
+			usX += emFontSize >> 1;
+		}
+	}
+}
 
 
 /// @brief      更新显存显示

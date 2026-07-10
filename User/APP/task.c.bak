@@ -13,17 +13,24 @@ extern CAN_HandleTypeDef hcan;
 // 全局接收缓存
 
 static CAN_RxHeaderTypeDef s_rxHeader;
-
 static uint8_t s_aucRxBuf[8];
-static uint8_t s_Txdata[8] = "abcd";
-
 static uint32_t s_ulRxId;
-static uint32_t s_ulTxId = 0x777;
 static uint8_t  s_ucRxLength;
-static uint8_t  s_ucTxLength = 4;
-//static uint32_t s_IDE;
-//static uint32_t s_RTR;
 
+// 全局发送缓存
+static uint8_t s_Txdata[8] = {0x55,0x66,0x48,0x77};
+
+// 全局发送结构体（使用指定初始化器，与 can.h 中字段顺序一致）
+stCanTxParamTdf stTxMsgArray[] =
+{
+	{.ulID    = 0x1158666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x1258666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x55F,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x666,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x1358666F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_REMOTE,},
+	{.ulID    = 0x666,	   .ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
+};
+static uint8_t i = 0;						//用来表示stTxMsgArray的第i项
 // service/task.c 应用层
 void vCanService_Init(void)
 {
@@ -62,6 +69,7 @@ void vOledInit(void)
 	stInit.usSdaGpioPin		= GPIO_PIN_9;
 	
 	vOledDeviceInit(&stInit, OLED);
+	vOledClearBuffer(OLED);			//清屏
 }
 
 /**
@@ -116,29 +124,13 @@ void Button_Init(void)
  * @retval 		
  * @note 		需要轮询
  */
-void vMyCanExecute(void)
+uint8_t ucMyCanExecute(void)
 {
-	if(ucMyCan_ReceiveFlag() == 1)
-	{
-		vMyCan_Receive(&s_rxHeader,s_aucRxBuf);
-		if(s_rxHeader.IDE == CAN_ID_STD)
-		{
-			s_ulRxId = s_rxHeader.StdId;
-		}
-		else
-		{
-			s_ulRxId = s_rxHeader.ExtId;
-		}
-		if(s_rxHeader.RTR == CAN_RTR_DATA)
-		{
-			
-			s_ucRxLength = s_rxHeader.DLC;
-		}
-		else
-		{
-			;
-		}
-	}
+    if (ucMyCan_ReceiveFlag()) {
+        vMyCan_Receive(&s_rxHeader, s_aucRxBuf);
+        return 1;   // 有新数据
+    }
+    return 0;       // 无数据
 }
 
 
@@ -146,21 +138,15 @@ void vtask(void)
 {
 	vBtnExecute(); 
 	
-	
-	vOledClearBuffer(OLED);
-	vOledWriteStringToBuffer(8,0,(uint8_t*)"TXID:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
-	vOledWriteStringToBuffer(8,16,(uint8_t*)"RXID:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
-	vOledWriteStringToBuffer(8,32,(uint8_t*)"Len:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
-	vOledWriteStringToBuffer(8,48,(uint8_t*)"DATA:",emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
-	
-	
 	// 复用之前的代码，规定BUTTON_UP是发送。
 	emButEventTdf emEventUp  		 = emBtnGetCurEvent(BUTTON_UP);
     emButEventTdf emEventDown		 = emBtnGetCurEvent(BUTTON_DOWN);
 	emButEventTdf emEventEnable 	 = emBtnGetCurEvent(BUTTON_ENABLE);
 	emButEventTdf emEventCancel   	 = emBtnGetCurEvent(BUTTON_CANCEL);
 	if (emEventUp == emBtnEvent_Click) {
-		vMyCan_Transmit(s_ulTxId,s_ucTxLength,s_Txdata,CAN_ID_STD,CAN_RTR_DATA);
+		if(i >= sizeof(stTxMsgArray) / sizeof(stTxMsgArray[0]))
+			i = 0;
+		vMyCan_Transmit(&stTxMsgArray[i++]);
 		s_Txdata[0]++;
 		s_Txdata[1]++;
 		s_Txdata[2]++;
@@ -172,23 +158,50 @@ void vtask(void)
 	if (emEventDown == emBtnEvent_Click) {
 		
 		vBtnEventClear(BUTTON_DOWN);
-	}
-	vMyCanExecute();								// 接收处理函数
+	}		
+
 	
+	vOledWriteStringToBuffer(6,0,(uint8_t*)"Rx:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,12,(uint8_t*)"RXID:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,36,(uint8_t*)"DATA:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,24,(uint8_t*)"Len:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+
+	uint8_t ucNewRx = ucMyCanExecute();				// 接收处理函数
 	static uint8_t s_aucStrBuf[16];
+	if(ucNewRx)
+	{
+		vOledClearBuffer(OLED);
+		if(s_rxHeader.IDE == CAN_ID_STD)
+		{
+			s_ulRxId = s_rxHeader.StdId;
+			vOledWriteStringToBuffer(24,0,(uint8_t*)"Std",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		}
+		else
+		{
+			s_ulRxId = s_rxHeader.ExtId;
+			vOledWriteStringToBuffer(24,0,(uint8_t*)"Exd",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		}
+		if(s_rxHeader.RTR == CAN_RTR_DATA)
+		{
+			s_ucRxLength = s_rxHeader.DLC;
+			vOledWriteStringToBuffer(48,0,(uint8_t*)"Data",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			
+			/* 显示 Length */
+			snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "%d", s_ucRxLength);
+			vOledWriteStringToBuffer(36, 24, s_aucStrBuf, emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
+			vOledWriteHexToBuffer(36, 36, s_aucRxBuf, s_ucRxLength, emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
+			
+		}
+		else
+		{
+			vOledWriteStringToBuffer(6,24,(uint8_t*)"Len:  0",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			vOledWriteStringToBuffer(48,0,(uint8_t*)"Remote",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		}
+		/* 显示 RxID */
+		snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulRxId);
+		vOledWriteStringToBuffer(36, 12, s_aucStrBuf, emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
 
-	/* 显示 TxID */
-	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulTxId);
-	vOledWriteStringToBuffer(48, 0, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);	
-
-	/* 显示 RxID */
-	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "0x%03lX", (unsigned long)s_ulRxId);
-	vOledWriteStringToBuffer(48, 16, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);
-
-	/* 显示 Length */
-	snprintf((char *)s_aucStrBuf, sizeof(s_aucStrBuf), "%d", s_ucRxLength);
-	vOledWriteStringToBuffer(48, 32, s_aucStrBuf, emOledFontSize_8x16, emOledPixelShowMode_Positive, OLED);
-
-	vOledWriteStringToBuffer(48,48,(uint8_t*)s_aucRxBuf,emOledFontSize_8x16,emOledPixelShowMode_Positive,OLED);
+		
+	}
 	vOledRefreshFromBuffer(OLED);
 }

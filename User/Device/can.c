@@ -5,31 +5,26 @@
 extern CAN_HandleTypeDef hcan;
 
 /**
- * @brief   发送 CAN 标准数据帧，带短暂重试
- * @param   Id        标准帧/扩展帧 ID
- * @param   Length    数据数量 (1~8)(1-8字节有效载荷)
- * @param   Data      需要发送的数据的指针
- * @param   IDE       扩展标志位
- * @param   RTR       遥控标志位
+ * @brief   发送一帧 CAN 报文
+ * @param   pstTxMsg    CAN 发送帧参数结构体指针
  * @note	仅进行单次发送，发送失败需要重复发送的处理放在应用层
  */
-void vMyCan_Transmit(uint32_t ID,uint8_t Length,uint8_t *Data,uint32_t IDE,uint32_t RTR)
+void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg)
 {
 	CAN_TxHeaderTypeDef CAN_TxHeader;
-//	CAN_TxHeader.StdId=ID;					//标准id
-//	CAN_TxHeader.ExtId=ID;					//扩展id
-	CAN_TxHeader.IDE=IDE;					//扩展标志位,选择标准格式则上面扩展id无效
-	CAN_TxHeader.DLC=Length;				//数据段长度
-	CAN_TxHeader.RTR=RTR;					//遥控标志位
-	CAN_TxHeader.TransmitGlobalTime=DISABLE;//精确测量报文发送时刻
-	
-	if (IDE == CAN_ID_STD) {
-        CAN_TxHeader.StdId = ID;
+
+	CAN_TxHeader.IDE = pstTxMsg->ulIDE;
+	CAN_TxHeader.DLC = pstTxMsg->ucDLC;
+	CAN_TxHeader.RTR = pstTxMsg->ulRTR;
+	CAN_TxHeader.TransmitGlobalTime = DISABLE;
+
+	if (pstTxMsg->ulIDE == CAN_ID_STD) {
+        CAN_TxHeader.StdId = pstTxMsg->ulID;
     } else {
-        CAN_TxHeader.ExtId = ID;
+        CAN_TxHeader.ExtId = pstTxMsg->ulID;
     }
 	uint32_t ulTxMailbox;					//返回发送所使用的邮箱号
-	HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, Data, &ulTxMailbox);
+	HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, pstTxMsg->pucData, &ulTxMailbox);
 }
 
 /**
@@ -48,6 +43,5 @@ uint8_t ucMyCan_ReceiveFlag(void)
 
 void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData)
 {
-	
 	HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,pHeader,RxData);
 }
