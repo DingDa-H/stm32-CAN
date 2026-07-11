@@ -23,42 +23,31 @@ static uint8_t s_Txdata[8] = {0x55,0x66,0x48,0x77};
 // 全局发送结构体（使用指定初始化器，与 can.h 中字段顺序一致）
 stCanTxParamTdf stTxMsgArray[] =
 {
-	{.ulID    = 0x100,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x101,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
-	{.ulID    = 0x1FE,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x1FF,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x123,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x234,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x345,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x456,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x12345678,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
+	{.ulID    = 0x0789ABCD,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
 
-	{.ulID    = 0x200,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x201,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
-	{.ulID    = 0x2FE,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x2FF,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-
-	{.ulID    = 0x300,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x301,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
-	{.ulID    = 0x3FE,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x3FF,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-
-	{.ulID    = 0x320,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x321,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_REMOTE,},
-	{.ulID    = 0x32E,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
-	{.ulID    = 0x32F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_STD,.ulRTR   = CAN_RTR_DATA,},
 };
 static uint8_t i = 0;						//用来表示stTxMsgArray的第i项
 // service/task.c 应用层
 void vCanService_Init(void)
 {
 	CAN_FilterTypeDef filter;
-	// 202607010,配置为16位列表模式
+	// 202607010,配置为32位列表模式
 	filter.FilterBank 				=0;						//滤波器编号0-13
 	filter.FilterActivation 		=ENABLE;				//是否启用该滤波器
 	filter.FilterFIFOAssignment 	=CAN_FILTER_FIFO0;		// CAN_FILTER_FIFO0 或 CAN_FILTER_FIFO1
-	filter.FilterIdHigh 			=0x200<<5 ;				/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
-	filter.FilterIdLow 				=0x320<<5 ;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
-
-	filter.FilterMaskIdHigh 		=(0x700<<5)|(0x10)|(0x08) ;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
-	filter.FilterMaskIdLow 			=(0x7F0<<5)|(0x10)|(0x08) ; 			/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
-	filter.FilterScale 				=CAN_FILTERSCALE_16BIT;	/* 滤波器位宽：16 位或 32 位 */
-	filter.FilterMode 				=CAN_FILTERMODE_IDMASK;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
+	uint32_t id1 = 0x123<<21;
+	filter.FilterIdHigh 			=id1>>16;				/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
+	filter.FilterIdLow 				=id1;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
+	uint32_t id2 = 0x12345678u<<3|(0x4);
+	filter.FilterMaskIdHigh 		=id2>>16;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
+	filter.FilterMaskIdLow 			=id2; 			/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
+	filter.FilterScale 				=CAN_FILTERSCALE_32BIT;	/* 滤波器位宽：16 位或 32 位 */
+	filter.FilterMode 				=CAN_FILTERMODE_IDLIST;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
 	filter.SlaveStartFilterBank 	=0;
 	HAL_CAN_ConfigFilter(&hcan, &filter);
 	HAL_CAN_Start(&hcan);
