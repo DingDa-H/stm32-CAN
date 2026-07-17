@@ -27,6 +27,8 @@ stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_corte
 stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
+stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
+stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32-can\oled_device.o: E:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
 stm32-can\oled_device.o: E:\Keil_v5\ARM\ARMCC\Bin\..\include\math.h
 stm32-can\oled_device.o: ..\User\Device\oled_font.h
