@@ -9,14 +9,21 @@
 
 
 extern CAN_HandleTypeDef hcan;
-static uint32_t s_ulRxId;
-static uint8_t  s_ucRxLength;
+//static uint32_t s_ulRxId;
+//static uint8_t  s_ucRxLength;
 
-//定时中断标志位
+//定时触发标志位
 static uint8_t s_ucTimFlag;
+
+//触发发送标志位
+static uint8_t s_ucTriggerFlag;
+
+//请求发送标志位
+static uint8_t s_ucRequestFlag;
 
 // 全局发送缓存
 static uint8_t s_Txdata[8] = {0x55,0x66,0x48,0x77};
+static uint8_t s_Txdata_1[8] = {0x00};
 
 // 全局发送结构体（使用指定初始化器，与 can.h 中字段顺序一致）
 stCanTxParamTdf stTxMsgArray[] =
@@ -32,7 +39,7 @@ stCanTxParamTdf stTxMsgArray[] =
 	{.ulID    = 0x0789AB0F,.ucDLC   = 4,.pucData = s_Txdata,.ulIDE   = CAN_ID_EXT,.ulRTR   = CAN_RTR_DATA,},
 };
 
-// 全局发送结构体（使用指定初始化器，与 can.h 中字段顺序一致）
+// 定时发送帧数据
 stCanTxParamTdf stTxMsg_Timing =
 {
 	.ulID    = 0x0789AB0F,
@@ -41,7 +48,43 @@ stCanTxParamTdf stTxMsg_Timing =
 	.ulIDE   = CAN_ID_EXT,
 	.ulRTR   = CAN_RTR_DATA,
 };
-static uint8_t i = 0;						//用来表示stTxMsgArray的第i项
+// 触发发送帧数据
+stCanTxParamTdf stTxMsg_Trigger =
+{
+	.ulID    = 0x555,
+	.ucDLC   = 4,
+	.pucData = s_Txdata,
+	.ulIDE   = CAN_ID_STD,
+	.ulRTR   = CAN_RTR_DATA,
+};
+// 请求发送帧数据
+stCanTxParamTdf stTxMsg_Request =
+{
+	.ulID    = 0x777,
+	.ucDLC   = 4,
+	.pucData = s_Txdata,
+	.ulIDE   = CAN_RTR_DATA,
+	.ulRTR   = CAN_RTR_REMOTE,
+};
+
+// 请求发送帧数据
+stCanTxParamTdf stTxMsg_Request_REMOTE =
+{
+	.ulID    = 0x789,
+	.ucDLC   = 4,
+	.pucData = s_Txdata_1,
+	.ulIDE   = CAN_ID_STD,
+	.ulRTR   = CAN_RTR_REMOTE,
+};
+stCanTxParamTdf stTxMsg_Request_DATA =
+{
+	.ulID    = 0x666,
+	.ucDLC   = 4,
+	.pucData = s_Txdata,
+	.ulIDE   = CAN_ID_STD,
+	.ulRTR   = CAN_RTR_DATA,
+};
+//static uint8_t i = 0;						//用来表示stTxMsgArray的第i项
 /**
  * @brief 		can初始化函数
  * @version 	
@@ -166,17 +209,17 @@ void Button_Init(void)
 //}
 
 /**
- * @brief 		实现定时发送
+ * @brief 		实现多种发送
  * @param 	
  * @retval 		
- * @note 		数据传输策略的实现，这里只实现发送设备的代码
+ * @note 		多种数据传输策略的实现
  */
 void vtask(void)
 {
+	//定时发送
 	if(s_ucTimFlag)
 	{
 		s_ucTimFlag = 0;
-		vOledClearBuffer(OLED);
 		
 		vOledWriteStringToBuffer(6,0,(uint8_t*)"Tx:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledWriteStringToBuffer(6,12,(uint8_t*)"Tim:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
@@ -190,9 +233,67 @@ void vtask(void)
 		s_Txdata[3]++;
 			
 		vOledWriteHexToBuffer(30,12,stTxMsg_Timing.pucData,stTxMsg_Timing.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-		HAL_Delay(500);
 		vOledRefreshFromBuffer(OLED);
+	}
+	
+	//触发发送
+	
+	vBtnExecute(); 
+	
+	// 复用之前的代码，规定BUTTON_UP是发送。
+	emButEventTdf emEventUp  		 = emBtnGetCurEvent(BUTTON_UP);
+    emButEventTdf emEventDown		 = emBtnGetCurEvent(BUTTON_DOWN);
+	emButEventTdf emEventEnable 	 = emBtnGetCurEvent(BUTTON_ENABLE);
+	emButEventTdf emEventCancel   	 = emBtnGetCurEvent(BUTTON_CANCEL);
+	if (emEventUp == emBtnEvent_Click)
+	{
+		s_ucTriggerFlag = 1;
+		vBtnEventClear(BUTTON_UP);
+	}
+	if(s_ucTriggerFlag)
+	{
+		s_ucTriggerFlag = 0;		
+		vMyCan_Transmit(&stTxMsg_Trigger);
+		s_Txdata[0]++;
+		s_Txdata[1]++;
+		s_Txdata[2]++;
+		s_Txdata[3]++;
+			
+		vOledWriteHexToBuffer(30,36,stTxMsg_Trigger.pucData,stTxMsg_Trigger.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		vOledRefreshFromBuffer(OLED);
+	}
+	//请求发送
+	if(ucBspCan_GetRxFlag() == 1)
+	{
+		CAN_RxHeaderTypeDef stAppHeader;  		 	// 局部接收帧头
+        uint8_t aucAppData[8];            			// 局部接收数据缓冲区
 		
+		/* 通过驱动层接口获取数据副本 */
+        vBspCan_GetRxHeader(&stAppHeader); 			// 拷贝帧头
+        vBspCan_GetRxData(aucAppData);     			// 拷贝数据
+		
+		vBspCan_ClearRxFlag();						// 清除标志
+		
+		if(stAppHeader.IDE == CAN_ID_STD 
+			&& stAppHeader.RTR == CAN_RTR_REMOTE 
+			&& stAppHeader.StdId == 0x777)
+		{/* 如果接收的是标准格式遥控帧 */					// 这里可以自己规定
+			s_ucRequestFlag = 1;							// 自动发送一个数据
+		}
+	}
+	
+	if(s_ucRequestFlag)
+	{
+		s_ucRequestFlag = 0;
+		
+		vMyCan_Transmit(&stTxMsg_Request_DATA);
+		s_Txdata[0]++;
+		s_Txdata[1]++;
+		s_Txdata[2]++;
+		s_Txdata[3]++;
+			
+		vOledWriteHexToBuffer(30,24,stTxMsg_Request.pucData,stTxMsg_Request.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		vOledRefreshFromBuffer(OLED);
 	}
 }
 
@@ -200,40 +301,69 @@ void vtask(void)
  * @brief 		实现接收
  * @param 	
  * @retval 		
- * @note 		发送设备的代码的数据传输策略的实现
+ * @note 		接收设备的代码的数据传输策略的实现-
  */
-//void vtask(void)
-//{	
-//	vOledWriteStringToBuffer(6,0,(uint8_t*)"Rx:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-//	vOledWriteStringToBuffer(6,12,(uint8_t*)"Tim:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-//	vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-//	vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+void vtask(void)
+{	
+	// 请求部分
+	vBtnExecute(); 
+	
+	// 复用之前的代码，规定BUTTON_UP是发送。
+	emButEventTdf emEventUp  		 = emBtnGetCurEvent(BUTTON_UP);
+    emButEventTdf emEventDown		 = emBtnGetCurEvent(BUTTON_DOWN);
+	emButEventTdf emEventEnable 	 = emBtnGetCurEvent(BUTTON_ENABLE);
+	emButEventTdf emEventCancel   	 = emBtnGetCurEvent(BUTTON_CANCEL);
+	if (emEventUp == emBtnEvent_Click)
+	{
+		vMyCan_Transmit(&stTxMsg_Request_REMOTE);
+		vBtnEventClear(BUTTON_UP);
+	}
+	if (emEventDown == emBtnEvent_Click)
+	{
+		vMyCan_Transmit(&stTxMsg_Request);
+		vBtnEventClear(BUTTON_DOWN);
+	}
+	
+	// 接收部分
+	vOledWriteStringToBuffer(6,0,(uint8_t*)"Rx:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,12,(uint8_t*)"Tim:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 
-//	uint8_t ucNewRx = ucBspCan_GetRxFlag();				
-//	static uint8_t s_aucStrBuf[16];
-//	if(ucNewRx)
-//	{
-////		vOledClearBuffer(OLED);
-//		
-//		CAN_RxHeaderTypeDef stAppHeader;  		 	// 局部接收帧头
-//        uint8_t aucAppData[8];            			// 局部接收数据缓冲区
-//		
-//		/* 通过驱动层接口获取数据副本 */
-//        vBspCan_GetRxHeader(&stAppHeader); 			// 拷贝帧头
-//        vBspCan_GetRxData(aucAppData);     			// 拷贝数据
-//		
-//		vBspCan_ClearRxFlag();						// 清除标志
-//		
-//		if(stAppHeader.RTR == CAN_RTR_DATA)
-//		{
-//			if(stAppHeader.ExtId == 0x0789AB0F && stAppHeader.IDE == CAN_ID_EXT)
-//			{	//收到了定时传输的数据
-//				vOledWriteHexToBuffer(30,12,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-//			}
-//		}
-//	}
-//	vOledRefreshFromBuffer(OLED);
-//}
+	uint8_t ucNewRx = ucBspCan_GetRxFlag();				
+	static uint8_t s_aucStrBuf[16];
+	if(ucNewRx)
+	{
+//		vOledClearBuffer(OLED);
+		
+		CAN_RxHeaderTypeDef stAppHeader;  		 	// 局部接收帧头
+        uint8_t aucAppData[8];            			// 局部接收数据缓冲区
+		
+		/* 通过驱动层接口获取数据副本 */
+        vBspCan_GetRxHeader(&stAppHeader); 			// 拷贝帧头
+        vBspCan_GetRxData(aucAppData);     			// 拷贝数据
+		
+		vBspCan_ClearRxFlag();						// 清除标志
+		
+		if(stAppHeader.RTR == CAN_RTR_DATA)
+		{
+			if(stAppHeader.ExtId == 0x0789AB0F && stAppHeader.IDE == CAN_ID_EXT)
+			{	//收到了定时传输的数据
+				vOledWriteHexToBuffer(30,12,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			}
+			if(stAppHeader.StdId == 0x555 && stAppHeader.IDE == CAN_ID_STD)
+			{	//收到了触发传输的数据
+				vOledWriteHexToBuffer(30,36,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			}
+			if(stAppHeader.StdId == 0x666 && stAppHeader.IDE == CAN_ID_STD)
+			{	//收到了请求传输的数据
+				vOledWriteHexToBuffer(30,24,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			}
+		}
+		
+	}
+	vOledRefreshFromBuffer(OLED);
+}
 
 /**
  * @brief  TIM2更新中断回调，100ms进一次
