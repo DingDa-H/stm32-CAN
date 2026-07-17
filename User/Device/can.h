@@ -27,6 +27,12 @@ typedef struct
 
 
 void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg);
-uint8_t ucMyCan_ReceiveFlag(void);
 void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData);
+void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
+//uint8_t ucMyCan_ReceiveFlag(void);
+
+uint8_t ucBspCan_GetRxFlag(void);
+void vBspCan_ClearRxFlag(void);
+void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader);
+void vBspCan_GetRxData(uint8_t *pBuf);
 #endif
