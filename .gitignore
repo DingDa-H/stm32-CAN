@@ -15,15 +15,18 @@
 *.iex
 *.tra
 *.build_log.htm
+*.elf
+*.map
+*.lnp
+*.sct
 
 # J-Link 调试日志
 JLinkLog.txt
 *.jlink
 
-# Keil 用户特定设置（包含窗口布局等本地配置）
+# Keil 用户特定设置（窗口布局等本地配置）
 *.uvguix.*
 *.uvoptx
-*.Administrator
 
 # Keil 工程备份
 *.uvprojx.bak
@@ -42,7 +45,7 @@ MDK-ARM/Listings/
 MDK-ARM/Objects/
 
 # ===================== 通用 =====================
-# 备份文件
+# 源码备份文件 xxx.c.bak / xxx.h.bak
 *.bak
 
 # 编辑器临时文件
