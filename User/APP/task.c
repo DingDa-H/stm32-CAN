@@ -67,7 +67,7 @@ stCanTxParamTdf stTxMsg_Request =
 	.ulRTR   = CAN_RTR_REMOTE,
 };
 
-// 请求发送帧数据
+// 请求发送遥控帧数据/数据帧数据
 stCanTxParamTdf stTxMsg_Request_REMOTE =
 {
 	.ulID    = 0x789,
@@ -97,13 +97,13 @@ stCanTxParamTdf stTxMsg_Request_DATA =
 //	// 202607010,配置为32位列表模式
 //	filter.FilterBank 				=0;						//滤波器编号0-13
 //	filter.FilterActivation 		=ENABLE;				//是否启用该滤波器
-//	filter.FilterFIFOAssignment 	=CAN_FILTER_FIFO0;		// CAN_FILTER_FIFO0 或 CAN_FILTER_FIFO1
+//	filter.FilterFIFOAssignment 	=CAN_FILTER_FIFO0;		// CAN_FILTER_FIFO0 或 CAN_FILTER_FIFO1（接收fifo）
 //	uint32_t ID = 0x12345600u<<3|(0x4);
 //	filter.FilterIdHigh 			=ID>>16;				/* 32位滤波器的高 16 位（对应标准 ID 的 11 位或扩展 ID 的高 16 位） */
-//	filter.FilterIdLow 				=ID;				/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
+//	filter.FilterIdLow 				=ID;					/* 32位滤波器的低 16 位（对应扩展 ID 的低 18 位、IDE、RTR 位等） */
 //	uint32_t MASK = (0x1FFFFF00u<<3)|(0x4)|(0x2);
 //	filter.FilterMaskIdHigh 		=MASK>>16;				/* 与 FilterIdHigh 对应的掩码高 16 位（1 表示必须匹配，0 表示不关心） */
-//	filter.FilterMaskIdLow 			=MASK; 			/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
+//	filter.FilterMaskIdLow 			=MASK; 					/* 与 FilterIdLow 对应的掩码低 16 位（1 表示必须匹配，0 表示不关心） */
 //	filter.FilterScale 				=CAN_FILTERSCALE_32BIT;	/* 滤波器位宽：16 位或 32 位 */
 //	filter.FilterMode 				=CAN_FILTERMODE_IDMASK;	/* 滤波器模式：列表模式（ID 完全匹配）或掩码模式（用掩码筛选） */
 //	filter.SlaveStartFilterBank 	=0;
