@@ -24,6 +24,8 @@
 #include "task.h"
 #include "oled_device.h"
 #include "botton.h"
+#include "can_app.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -99,7 +101,7 @@ int main(void)
 	HAL_TIM_Base_Start_IT(&htim2);
     vOledInit();
     Button_Init();
-	vCanService_Init();
+	vCanAppInit();
   /* USER CODE END 2 */
 
   /* Infinite loop */

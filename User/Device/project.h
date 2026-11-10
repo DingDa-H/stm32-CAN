@@ -9,19 +9,7 @@
 #ifndef __PROJECT_H_
 #define __PROJECT_H_
 
-//行：Row		薄膜按键，还需要优化
 
-//列：Column
-
-#define KEYPAD_Row01				GPIO_PIN_0		//行1，默认为GPIOA
-#define KEYPAD_Row02				GPIO_PIN_1
-#define KEYPAD_Row03				GPIO_PIN_2
-#define KEYPAD_Row04				GPIO_PIN_3
-										
-#define KEYPAD_Col01				GPIO_PIN_4		//列1，默认为GPIOA
-#define KEYPAD_Col02				GPIO_PIN_5
-#define KEYPAD_Col03				GPIO_PIN_6
-#define KEYPAD_Col04				GPIO_PIN_7
 			
 #define STM32_IC_HAL				"stm32f1xx_hal.h"
 		
@@ -49,39 +37,26 @@
 
 #define MENU_VISIBLE_LINES      	4U								// 菜单一屏可见行数，和 menu.c 滚动逻辑对应
 
+/* ============ CAN 测试配置 ============ */
+/* 一份测试配置 = 一组配套参数：过滤器配置 + 对应的发送帧表 + 预期结果，切换配置即整套更换 */
+#define CAN_TEST_ALL_PASS      		0U
+#define CAN_TEST_16BIT_LIST    		1U
+#define CAN_TEST_16BIT_MASK    		2U
+#define CAN_TEST_32BIT_LIST    		3U
+#define CAN_TEST_32BIT_MASK    		4U
 
-#define RX_BUF_SIZE 				50								//串口接收缓存大小
-#define RING_BUFFER_DEV_NUM 		1								//环形缓冲区设备数
-#define UART_RX_BUFFER 				emRingBufNum0					//环形缓冲区设备号
-			
-#define INTERPRETER_CMD_MAX_NUM     20								/* 全局命令表最大容量（根据项目需要调整） */
-			
-#define SNAKE_MAX_LEN     			48								/* 贪吃蛇最大缓存长度 */
-//#define SNAKE0     					emSnakeNum0					/* 贪吃蛇设备号 */
-#define SNAKE_MOVE_SPEED     		150								/* 贪吃蛇移动速度（ms） */
+#define CAN_TEST_PROFILE       		CAN_TEST_ALL_PASS   			/* 当前测试配置 */
+
+/* ============ 节点类型配置 ============ */
+/* 三节点联调（1 发 2 收菊花链，同一工程分别编译三份固件）：                       */
+/* 发送节点（SENDER）  ：按当前测试配置的帧表循环发包（帧表内故意含应被过滤的帧）；  */
+/* 接收节点（RECEIVER）：启用当前测试配置的硬件过滤器，显示所有通过的帧（帧类型解码） */
+/* 滤波对照实验：接收节点 B 用目标滤波配置、接收节点 C 用 ALL_PASS，同刻对比两端收到的报文 */
+#define CAN_NODE_RECEIVER      		0U								// 接收节点（RECEIVER）
+#define CAN_NODE_SENDER        		1U								// 发送节点（SENDER）
+
+#define CAN_NODE_ROLE          		CAN_NODE_RECEIVER   			/* 当前节点类型 */
 
 
-// ===================== 页面枚举 =====================
-typedef enum
-{
-    emMenu = 0,                										// 主菜单
-    emMenu_Calculator,         										// 计算器页面
-    emMenu_LED,                										// LED控制页面
-    emMenu_SnakeGame,          										// 贪吃蛇页面
-    emMenu_SerialTest,         										// 串口测试页面
-} emAllMenuTdf;
-/**
- * @brief 		贪吃蛇游戏状态枚举
- * @note 		根据当前状态实现对应按键功能，以及显示文本、按钮
- */
-typedef enum
-{
-    emSnakeGameStu_Idle    	 		= 0,							//游戏开始前
-    emSnakeGameStu_Running    	 	= 1,							//游戏开始后
-	emSnakeGameStu_Win    	 		= 2,							//游戏胜利
-	emSnakeGameStu_Fail    		 	= 3,							//游戏失败
-	emBackMenu	    	 			= 4,							//回到主菜单状态
-}
-emSnakeGameStuTdf;
 
 #endif

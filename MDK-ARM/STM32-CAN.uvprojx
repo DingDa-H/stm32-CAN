@@ -655,6 +655,26 @@
               <FileType>5</FileType>
               <FilePath>..\User\APP\task.h</FilePath>
             </File>
+            <File>
+              <FileName>can_test.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\APP\can_test.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_test.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\APP\can_test.h</FilePath>
+            </File>
+            <File>
+              <FileName>can_app.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\APP\can_app.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_app.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\APP\can_app.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -671,11 +691,6 @@
               <FilePath>..\User\Device\oled_font.c</FilePath>
             </File>
             <File>
-              <FileName>can.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\User\Device\can.c</FilePath>
-            </File>
-            <File>
               <FileName>botton.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\Device\botton.c</FilePath>
@@ -689,6 +704,16 @@
               <FileName>tim_device.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\User\Device\tim_device.h</FilePath>
+            </File>
+            <File>
+              <FileName>can_device.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Device\can_device.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_device.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\Device\can_device.h</FilePath>
             </File>
           </Files>
         </Group>

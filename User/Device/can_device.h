@@ -5,12 +5,11 @@
  * @note 		........
  */
 
-#ifndef __CAN_H
-#define __CAN_H
+#ifndef __CAN_DEVICE_H
+#define __CAN_DEVICE_H
 
 #include "stm32f1xx_hal.h"
 #include "project.h"
-#include "oled_device.h"
 
 /**
  * @brief 	CAN 发送帧参数结构体
@@ -31,8 +30,10 @@ void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData);
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
 //uint8_t ucMyCan_ReceiveFlag(void);
 
-uint8_t bsp_can_GetRxFlag(void);
+uint8_t ucBspCan_GetRxFlag(void);
 void vBspCan_ClearRxFlag(void);
 void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader);
 void vBspCan_GetRxData(uint8_t *pBuf);
+
+void vCanDeviceInit(uint32_t ulFilterId, uint32_t ulFilterMask, uint32_t ulFilterMode, uint32_t ulFilterScale);
 #endif

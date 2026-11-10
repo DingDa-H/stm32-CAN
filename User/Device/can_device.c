@@ -1,10 +1,10 @@
 
 #include "stm32f1xx_hal.h"
-#include <can.h>
+#include <can_device.h>
 	
 extern CAN_HandleTypeDef hcan;
 
-static uint8_t ucRxFlag = 0;						// 新增接收标志：中断置1，主循环读取后置0
+static volatile uint8_t ucRxFlag = 0;				// 接收标志：中断置1，主循环读取后清0（volatile：禁止编译器缓存）
 
 static CAN_RxHeaderTypeDef s_rxHeader;				// 接收报文的帧头信息
 
@@ -32,6 +32,41 @@ void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg)
 	uint32_t ulTxMailbox;					//返回发送所使用的邮箱号
 	HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, pstTxMsg->pucData, &ulTxMailbox);
 }
+
+
+
+
+/**
+ * @brief 		can初始化函数
+ * @version 	
+ * @data 			
+ * @note 		按 project.h 里的 CAN_TEST_PROFILE 配置滤波器、开启接收中断
+ */
+// 在 can_device.c 中
+void vCanDeviceInit(uint32_t ulFilterId, uint32_t ulFilterMask, uint32_t ulFilterMode, uint32_t ulFilterScale)
+{
+    CAN_FilterTypeDef filter = {0};
+    
+    filter.FilterBank = 0;
+    filter.FilterActivation = ENABLE;
+    filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+    
+    // 直接接收上层算好的参数
+    filter.FilterIdHigh     = (uint16_t)(ulFilterId >> 16);
+    filter.FilterIdLow      = (uint16_t)ulFilterId;
+    filter.FilterMaskIdHigh = (uint16_t)(ulFilterMask >> 16);
+    filter.FilterMaskIdLow  = (uint16_t)ulFilterMask;
+    filter.FilterMode       = ulFilterMode;
+    filter.FilterScale      = ulFilterScale;
+
+    HAL_CAN_ConfigFilter(&hcan, &filter);
+    HAL_CAN_Start(&hcan);
+    HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_BUSOFF | CAN_IT_ERROR);
+}
+
+
+
+
 
 /**
  * @brief   查询当前空闲邮箱数量函数

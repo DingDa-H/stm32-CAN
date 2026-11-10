@@ -5,11 +5,11 @@
 <h2>Tool Versions:</h2>
 IDE-Version: ¦ÌVision V5.24.2.0
 Copyright (C) 2017 ARM Ltd and ARM Germany GmbH. All rights reserved.
-License Information: Ding ding, LodDing, LIC=LSNXV-PYX26-SBLEJ-U5J31-BHKES-Q28YR
+License Information: A DHH, A, LIC=NQQMA-1EQKF-X7WRZ-J1T2T-IBFKI-MTE5D
  
 Tool Versions:
 Toolchain:       MDK-ARM Plus  Version: 5.24.1
-Toolchain Path:  E:\Keil_v5\ARM\ARMCC\Bin
+Toolchain Path:  D:\keil5\ARM\ARMCC\Bin
 C Compiler:      Armcc.exe V5.06 update 5 (build 528)
 Assembler:       Armasm.exe V5.06 update 5 (build 528)
 Linker/Locator:  ArmLink.exe V5.06 update 5 (build 528)
@@ -21,13 +21,26 @@ Target DLL:      STLink\ST-LINKIII-KEIL_SWO.dll V3.0.1.0
 Dialog DLL:      TCM.DLL V1.32.0.0
  
 <h2>Project:</h2>
-E:\STM32-Study\CubeMxTest\STM32-CAN\MDK-ARM\STM32-CAN.uvprojx
-Project File Date:  07/17/2026
+D:\STM32-Study\CubeMxTest\STM32-CAN\MDK-ARM\STM32-CAN.uvprojx
+Project File Date:  11/09/2026
 
 <h2>Output:</h2>
-*** Using Compiler 'V5.06 update 5 (build 528)', folder: 'E:\Keil_v5\ARM\ARMCC\Bin'
+*** Using Compiler 'V5.06 update 5 (build 528)', folder: 'D:\keil5\ARM\ARMCC\Bin'
 Build target 'STM32-CAN'
-"STM32-CAN\STM32-CAN.axf" - 0 Error(s), 0 Warning(s).
+compiling can_test.c...
+..\User\APP\can_test.c(99): warning:  #1-D: last line of file ends without a newline
+  }
+..\User\APP\can_test.c: 1 warning, 0 errors
+compiling can_device.c...
+..\User\Device\can_device.c(130): warning:  #1-D: last line of file ends without a newline
+  }
+..\User\Device\can_device.c: 1 warning, 0 errors
+compiling task.c...
+compiling can_app.c...
+linking...
+Program Size: Code=10876 RO-data=6392 RW-data=148 ZI-data=2364  
+FromELF: creating hex file...
+"STM32-CAN\STM32-CAN.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -44,13 +57,13 @@ Package Vendor: Keil
 
 <h2>Collection of Component include folders:</h2>
   .\RTE\_STM32-CAN
-  E:\Keil_v5\ARM\PACK\ARM\CMSIS\5.0.1\CMSIS\Include
-  E:\Keil_v5\ARM\PACK\Keil\STM32F1xx_DFP\2.2.0\Device\Include
+  D:\keil5\ARM\PACK\ARM\CMSIS\5.0.1\CMSIS\Include
+  D:\keil5\ARM\PACK\Keil\STM32F1xx_DFP\2.2.0\Device\Include
 
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.0.1
-Build Time Elapsed:  00:00:00
+Build Time Elapsed:  00:00:01
 </pre>
 </body>
 </html>

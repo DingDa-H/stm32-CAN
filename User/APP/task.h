@@ -21,5 +21,4 @@ void vOledInit(void);
 void Button_Init(void);
 
 void vtask(void);
-void vCanService_Init(void);
 #endif
