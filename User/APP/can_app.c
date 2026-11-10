@@ -72,42 +72,71 @@ static stCanTxParamTdf stTxMsg_Request_DATA =
  * @brief   CAN 应用层初始化
  * @note    根据 project.h 中的宏配置，计算滤波参数并调用底层初始化
  */
+// can_app.c 中修改 vCanAppInit 函数
+// can_app.c
 void vCanAppInit(void)
 {
-    uint32_t ulIdVal   = 0;
-    uint32_t ulMaskVal = 0;
-    uint32_t ulMode    = CAN_FILTERMODE_IDMASK; // 默认掩码模式
-    uint32_t ulScale   = CAN_FILTERSCALE_32BIT; // 默认32位
+    CAN_FilterTypeDef stFilter = {0};
+    
+    // 通用配置
+    stFilter.FilterBank = 0;
+    stFilter.FilterActivation = ENABLE;
+    stFilter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
 
 #if (CAN_TEST_PROFILE == CAN_TEST_ALL_PASS)
-    ulIdVal   = 0;
-    ulMaskVal = 0;
-
-#elif (CAN_TEST_PROFILE == CAN_TEST_32BIT_MASK)
-    ulIdVal   = (0x12345600u << 3) | 0x4;
-    ulMaskVal = (0x1FFFFF00u << 3) | 0x4 | 0x2;
-
-#elif (CAN_TEST_PROFILE == CAN_TEST_32BIT_LIST)
-    ulIdVal   = 0x123u << 21;
-    ulMaskVal = (0x12345678u << 3) | 0x4;
-    ulMode    = CAN_FILTERMODE_IDLIST;
+    stFilter.FilterIdHigh = 0;
+    stFilter.FilterIdLow = 0;
+    stFilter.FilterMaskIdHigh = 0;
+    stFilter.FilterMaskIdLow = 0;
+    stFilter.FilterMode = CAN_FILTERMODE_IDMASK;
+    stFilter.FilterScale = CAN_FILTERSCALE_32BIT;
 
 #elif (CAN_TEST_PROFILE == CAN_TEST_16BIT_MASK)
-    ulIdVal   = 0x200u << 5; 
-    ulMaskVal = (0x700u << 5) | 0x10 | 0x08;
-    ulScale   = CAN_FILTERSCALE_16BIT;
+    stFilter.FilterIdHigh = 0x200 << 5;
+    stFilter.FilterIdLow = 0x320 << 5;
+    stFilter.FilterMaskIdHigh = (0x700 << 5) | 0x10 | 0x08;
+    stFilter.FilterMaskIdLow = (0x7F0 << 5) | 0x10 | 0x08;
+    stFilter.FilterMode = CAN_FILTERMODE_IDMASK;
+    stFilter.FilterScale = CAN_FILTERSCALE_16BIT;
 
-#else /* CAN_TEST_PROFILE == CAN_TEST_16BIT_LIST */
-    ulIdVal   = 0x234u << 5;
-    ulMaskVal = 0x345u << 5; 
-    ulMode    = CAN_FILTERMODE_IDLIST;
-    ulScale   = CAN_FILTERSCALE_16BIT;
+#elif (CAN_TEST_PROFILE == CAN_TEST_16BIT_LIST)
+    stFilter.FilterIdHigh = 0x234 << 5;
+    stFilter.FilterIdLow = 0x345 << 5;
+    stFilter.FilterMaskIdHigh = 0x567 << 5;
+    stFilter.FilterMaskIdLow = 0x000 << 5;
+    stFilter.FilterMode = CAN_FILTERMODE_IDLIST;
+    stFilter.FilterScale = CAN_FILTERSCALE_16BIT;
+
+#elif (CAN_TEST_PROFILE == CAN_TEST_32BIT_MASK)
+    // 在常量后加 u，并先把常量强转为 uint32_t，再做移位
+    uint32_t ulId = ((uint32_t)0x12345600u << 3) | 0x4;
+    
+    // 加上 0x4 掩码位，严格限制“必须是扩展帧” + “必须是数据帧”
+    uint32_t ulMask = ((uint32_t)0x1FFFFF00u << 3) | 0x4 | 0x2; 
+    
+    stFilter.FilterIdHigh = ulId >> 16;
+    stFilter.FilterIdLow  = ulId & 0xFFFF;
+    stFilter.FilterMaskIdHigh = ulMask >> 16;
+    stFilter.FilterMaskIdLow  = ulMask & 0xFFFF;
+    stFilter.FilterMode = CAN_FILTERMODE_IDMASK;
+    stFilter.FilterScale = CAN_FILTERSCALE_32BIT;
+
+#else /* CAN_TEST_PROFILE == CAN_TEST_32BIT_LIST */
+    // 这里同样要防止溢出警告
+    uint32_t ulId1 = ((uint32_t)0x123u << 21);
+    uint32_t ulId2 = ((uint32_t)0x12345678u << 3) | 0x4;
+    
+    stFilter.FilterIdHigh = ulId1 >> 16;
+    stFilter.FilterIdLow  = ulId1 & 0xFFFF;
+    stFilter.FilterMaskIdHigh = ulId2 >> 16;
+    stFilter.FilterMaskIdLow  = ulId2 & 0xFFFF;
+    stFilter.FilterMode = CAN_FILTERMODE_IDLIST;
+    stFilter.FilterScale = CAN_FILTERSCALE_32BIT;
 #endif
 
-    // 调用驱动层，执行硬件初始化
-    vCanDeviceInit(ulIdVal, ulMaskVal, ulMode, ulScale);
+    // 调用底层初始化，把算好的结构体传过去
+    vCanDeviceInit(&stFilter);
 }
-
 
 /**
  * @brief   发送板业务任务

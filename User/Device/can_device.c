@@ -42,29 +42,35 @@ void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg)
  * @data 			
  * @note 		按 project.h 里的 CAN_TEST_PROFILE 配置滤波器、开启接收中断
  */
-// 在 can_device.c 中
-void vCanDeviceInit(uint32_t ulFilterId, uint32_t ulFilterMask, uint32_t ulFilterMode, uint32_t ulFilterScale)
-{
-    CAN_FilterTypeDef filter = {0};
-    
-    filter.FilterBank = 0;
-    filter.FilterActivation = ENABLE;
-    filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-    
-    // 直接接收上层算好的参数
-    filter.FilterIdHigh     = (uint16_t)(ulFilterId >> 16);
-    filter.FilterIdLow      = (uint16_t)ulFilterId;
-    filter.FilterMaskIdHigh = (uint16_t)(ulFilterMask >> 16);
-    filter.FilterMaskIdLow  = (uint16_t)ulFilterMask;
-    filter.FilterMode       = ulFilterMode;
-    filter.FilterScale      = ulFilterScale;
+//// 在 can_device.c 中
+//void vCanDeviceInit(const stCanFilterParamTdf *pstFilter)
+//{
+//    CAN_FilterTypeDef filter = {0};
+//    
+//    filter.FilterBank = 0;
+//    filter.FilterActivation = ENABLE;
+//    filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+//    
+//    // 直接接收应用层算好的寄存器值
+//    filter.FilterIdHigh     = (uint16_t)pstFilter->ulFilterIdHigh;
+//    filter.FilterIdLow      = (uint16_t)pstFilter->ulFilterIdLow;
+//    filter.FilterMaskIdHigh = (uint16_t)pstFilter->ulFilterMaskIdHigh;
+//    filter.FilterMaskIdLow  = (uint16_t)pstFilter->ulFilterMaskIdLow;
+//    filter.FilterMode       = pstFilter->ulFilterMode;
+//    filter.FilterScale      = pstFilter->ulFilterScale;
 
-    HAL_CAN_ConfigFilter(&hcan, &filter);
+//    HAL_CAN_ConfigFilter(&hcan, &filter);
+//    HAL_CAN_Start(&hcan);
+//    HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_BUSOFF | CAN_IT_ERROR);
+//}
+// can_device.c
+void vCanDeviceInit(const CAN_FilterTypeDef *pstFilter)
+{
+    // 直接配底层
+    HAL_CAN_ConfigFilter(&hcan, pstFilter);
     HAL_CAN_Start(&hcan);
     HAL_CAN_ActivateNotification(&hcan, CAN_IT_RX_FIFO0_MSG_PENDING | CAN_IT_BUSOFF | CAN_IT_ERROR);
 }
-
-
 
 
 

@@ -35,5 +35,5 @@ void vBspCan_ClearRxFlag(void);
 void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader);
 void vBspCan_GetRxData(uint8_t *pBuf);
 
-void vCanDeviceInit(uint32_t ulFilterId, uint32_t ulFilterMask, uint32_t ulFilterMode, uint32_t ulFilterScale);
+void vCanDeviceInit(const CAN_FilterTypeDef *pstFilter);
 #endif

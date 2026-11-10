@@ -1,10 +1,10 @@
 # STM32-CAN 总线驱动验证与多节点通信
 
-基于 STM32F103C8T6（bxCAN）+ TJA1050 收发器的 CAN 2.0B 三节点通信验证项目（1 发 2 收菊花链拓扑，可异构配置滤波器剖面）。包含分层 BSP 驱动、四种硬件滤波器配置实验、标准帧/扩展帧/遥控帧收发，以及定时/触发/请求三种传输策略，配套 128×64 OLED 显示与按键交互。
+基于 STM32F103C8T6（bxCAN）+ TJA1050 的 CAN 2.0B 三节点通信验证项目（1 发 2 收）。同一份源码通过两个编译期宏生成发送板或接收板固件，支持全通接收和四种硬件滤波器测试配置，覆盖标准帧、扩展帧、遥控帧，以及定时发送、按键触发发送、请求—应答、遥控帧发送四类收发行为，配套 128×64 OLED 显示与按键交互。
 
 [![Platform](https://img.shields.io/badge/MCU-STM32F103C8T6-blue)]()
 [![Bus](https://img.shields.io/badge/CAN-500kbps-orange)]()
-[![IDE](https://img.shields.io/badge/Toolchain-Keil%20MDK%205-green)]()
+[![Toolchain](https://img.shields.io/badge/Keil%20MDK-ARM%20V5-green)]()
 
 > 仓库地址：https://github.com/DingDa-H/stm32-CAN
 
@@ -15,14 +15,14 @@
 | 项 | 配置 |
 |---|---|
 | MCU | STM32F103C8T6（Cortex-M3，72MHz） |
-| 时钟 | HSE 8MHz → PLL×9 → SYSCLK 72MHz，APB1 = 36MHz |
+| 时钟 | HSE 8MHz → PLL×9 → SYSCLK 72MHz，APB1 36MHz |
 | CAN 收发器 | TJA1050（5V 供电，3.3V IO） |
-| CAN 引脚 | PA11（CAN_RX）/ PA12（CAN_TX） |
-| OLED | 128×64，软件模拟 I2C：PB8=SCL、PB9=SDA（开漏输出） |
-| 按键 | PB1 / PB11（低有效）、PB12 / PB13（高有效），低电平触发 |
+| CAN 引脚 | PA11 = CAN_RX，PA12 = CAN_TX |
+| OLED | 128×64，软件 I2C：PB8 = SCL，PB9 = SDA |
+| 按键 | PB11 = KEY_UP，PB1 = KEY_DOWN，低电平有效；PB12/PB13 已在按键模块注册，当前 CAN 业务不使用 |
 | 调试 | SWD（PA13/PA14） |
 
-### CAN 位时序计算（500kbps）
+### CAN 位时序（500kbps）
 
 ```
 量化时间 tq = Prescaler / F_APB1 = 6 / 36MHz
@@ -32,150 +32,240 @@
 SJW        = 2 tq
 ```
 
-外设初始化关键项（`Core/Src/main.c` 的 `MX_CAN_Init`）：
-- 工作模式 `CAN_MODE_NORMAL`（早期回环自测阶段使用 `CAN_MODE_LOOPBACK` 校验过波特率与时序，见提交 `6b747cc`、`688bc84`）
-- `AutoRetransmission = DISABLE`：单次发送语义，重发策略交由应用层决定
+`Core/Src/main.c` 的 `MX_CAN_Init` 关键项：
+
+- 工作模式 `CAN_MODE_NORMAL`
+- `AutoBusOff = DISABLE`：控制器不自动退出 Bus-Off，为后续软件恢复流程预留
+- `AutoRetransmission = DISABLE`：单次发送语义，仲裁失败或出错后不自动重发；当前应用层没有补发逻辑
+- `Prescaler = 6`，`SJW = 2TQ`，`BS1 = 8TQ`，`BS2 = 3TQ`
 
 ---
 
-## 2. 软件架构（三层）
+## 2. 软件架构
+
+按设备驱动层 / 中间件 / 应用层组织，接口边界参照 AUTOSAR 的分层思路，但不是完整的 AUTOSAR 协议栈：CAN 驱动之上直接接应用层，没有独立的 CanIf、PduR、Com 模块。
 
 ```
-User/
-├── Device/                 # 驱动层：硬件抽象
-│   ├── can.c/h             #   CAN 收发封装（发送结构体 + 中断接收缓存）
-│   ├── oled_device.c/h     #   OLED 驱动（软件 I2C + 显存缓冲，BSRR 直接寄存器操作）
-│   ├── botton.c/h          #   按键 GPIO 读取 + 非阻塞消抖
-│   └── project.h           #   引脚/字号/设备枚举等全局配置
-├── Middle/
-│   └── button_mid.c        #   按键事件状态机（单击/双击/长按，HAL_GetTick 计时）
-└── APP/
-    └── task.c              #   CAN 服务初始化、发送帧表、主循环收发策略
+STM32-CAN/
+├── Core/                            CubeMX 生成的启动、时钟、外设初始化
+├── Drivers/                         HAL 库与 CMSIS
+├── MDK-ARM/                         Keil 工程与编译产物
+└── User/
+    ├── Device/                      设备驱动层
+    │   ├── can_device.c/h           CAN 发送、滤波器下发、FIFO0 接收中断缓存、接收标志与取数接口
+    │   ├── tim_device.c/h           TIM2 100ms 周期标志
+    │   ├── oled_device.c/h          OLED 驱动（软件 I2C + 显存缓冲）
+    │   ├── oled_font.c/h            字库
+    │   ├── botton.c/h               按键 GPIO 电平读取
+    │   └── project.h                编译期配置：测试配置、节点类型、OLED/按键公共宏
+    ├── Middle/
+    │   └── button_mid.c/h           按键事件状态机（消抖、单击/双击/长按）
+    └── APP/
+        ├── can_app.c/h              CAN 应用层：滤波参数计算、发送板/接收板业务
+        ├── can_test.c/h             测试帧表、按索引发送、帧表长度查询
+        └── task.c/h                 任务入口：设备初始化、按键扫描、按节点类型分发
 ```
 
-### 接收链路：中断 + 标志位 + 主循环搬运
+`*.bak` 是旧版本备份，不在 Keil 工程中，不参与编译。
+
+### 初始化与运行流程
+
+```text
+main()
+ ├─ MX_GPIO_Init / MX_CAN_Init / MX_TIM2_Init
+ ├─ HAL_TIM_Base_Start_IT(&htim2)
+ ├─ vOledInit / Button_Init
+ └─ vCanAppInit()
+      └─ 按 CAN_TEST_PROFILE 填写 CAN_FilterTypeDef
+           └─ vCanDeviceInit()
+                └─ HAL_CAN_ConfigFilter / HAL_CAN_Start / HAL_CAN_ActivateNotification
+
+while (1) vtask()
+ ├─ vBtnExecute()
+ └─ 按 CAN_NODE_ROLE 分支
+      ├─ CAN_NODE_SENDER   → vCanAppSenderTask()
+      └─ CAN_NODE_RECEIVER → vCanAppReceiverTask()
+```
+
+接收链路：FIFO0 中断 `HAL_CAN_RxFifo0MsgPendingCallback` 只把帧头和 8 字节数据存入驱动层静态缓存并置接收标志；主循环读取、清标志后再做 ID 判断和 OLED 刷新。中断里不刷屏、不延时。
+
+### 滤波参数的下发路径
 
 ```
-FIFO0 收到报文
-  └─ HAL_CAN_RxFifo0MsgPendingCallback（ISR）
-       ├─ HAL_CAN_GetRxMessage → 存入驱动层静态缓存 s_aucRxBuf / s_rxHeader
-       └─ 置接收标志 ucRxFlag = 1
-主循环 vtask()
-  ├─ 读标志 → 拷贝帧头/数据副本 → 清标志
-  ├─ 按 IDE/RTR/ID 分类处理
-  └─ 写 OLED 显存 → 整屏刷新
+project.h 的 CAN_TEST_PROFILE
+  → can_app.c 的 vCanAppInit()：填写 CAN_FilterTypeDef（Bank 0、FIFO0、ID/掩码/模式/位宽）
+  → can_device.c 的 vCanDeviceInit()：HAL_CAN_ConfigFilter / Start / ActivateNotification
 ```
 
-设计原则：**中断里只取数、不刷屏**，总线负载高时不影响位时序响应。
-
-### 发送封装
-
-`stCanTxParamTdf` 统一描述一帧（ID / DLC / 数据 / IDE / RTR），`vMyCan_Transmit` 内部根据 `IDE` 自动落到 `StdId` 或 `ExtId`，调用方无需关心 HAL 帧头细节。
+四种滤波配置的 ID、掩码、模式和位宽全部集中在 `vCanAppInit()`；`vCanDeviceInit()` 只负责把结构体交给 HAL，不再参与参数拆分。
 
 ---
 
-## 3. 帧类型验证矩阵
+## 3. 编译期配置
 
-项目中实际收发过的帧组合（发送帧表见 `User/APP/task.c`）：
+`User/Device/project.h` 末尾有两个宏：
 
-| 帧 ID | IDE | RTR | 用途 |
+| 宏 | 取值 | 作用 |
+|---|---|---|
+| `CAN_TEST_PROFILE` | `CAN_TEST_ALL_PASS` / `CAN_TEST_16BIT_LIST` / `CAN_TEST_16BIT_MASK` / `CAN_TEST_32BIT_LIST` / `CAN_TEST_32BIT_MASK` | 选择滤波器配置和发送帧表 |
+| `CAN_NODE_ROLE` | `CAN_NODE_SENDER` / `CAN_NODE_RECEIVER` | 选择节点类型 |
+
+常用固件组合：
+
+| 场景 | 板 | `CAN_TEST_PROFILE` | `CAN_NODE_ROLE` |
 |---|---|---|---|
-| 0x555 | 标准 | 数据 | 触发传输 |
-| 0x666 | 标准 | 数据 | 请求-响应应答帧 |
-| 0x777 | 标准 | **遥控** | 请求帧（收到后对端自动应答 0x666） |
-| 0x789 | 标准 | 遥控 | 按键主动发起的请求帧 |
-| 0x0789AB0F | **扩展** | 数据 | 定时上报帧 |
-| 0x123456xx / 0x0789ABxx | 扩展 | 数据 | 滤波器实验用多 ID 帧组 |
+| 全通联调 | A（发送板） | `CAN_TEST_ALL_PASS` | `CAN_NODE_SENDER` |
+| 全通联调 | B、C（接收板） | `CAN_TEST_ALL_PASS` | `CAN_NODE_RECEIVER` |
+| 滤波实验 | A（发送板） | 目标测试配置 | `CAN_NODE_SENDER` |
+| 滤波实验 | B（被测接收板） | 与 A 相同的测试配置 | `CAN_NODE_RECEIVER` |
 
-接收端对 IDE / RTR / ID 三要素做分类识别后分发显示（`vtask()` 接收分支）。
+工程默认值是 `CAN_TEST_ALL_PASS + CAN_NODE_RECEIVER`，直接编译得到全通接收板固件。改宏之后必须重新编译再烧录。
 
 ---
 
-## 4. 传输策略（三节点联调）
+## 4. 全通模式：四种通信行为
 
-发送节点与接收节点为同一工程的两种编译形态（`project.h` 中 `CAN_NODE_ROLE` 宏切换，无需再手工增删注释；历史上对应提交 `98a0c3b`、`8370e6c`）：
+全通配置下，发送板使用业务帧，不使用测试帧表；接收板按 ID 和帧类型分类显示。
 
-| 策略 | 触发方式 | 帧 | 对端行为 |
-|---|---|---|---|
-| **定时发送** | TIM2 100ms 更新中断置标志 | 0x0789AB0F 扩展数据帧，数据自增 | 接收端 OLED "Tim" 行显示 |
-| **触发发送** | 按键单击（事件状态机识别） | 0x555 标准数据帧 | "Tri" 行显示 |
-| **请求发送** | 收到 0x777 遥控帧 | 自动应答 0x666 数据帧 | "Req" 行显示 |
+| # | 行为 | 发起板 | 触发条件 | 发出的帧 | 对方动作与显示 |
+|---|---|---|---|---|---|
+| 1 | 定时发送 | A 板 | 上电自动，TIM2 每 100ms | `0x0789AB0F` 扩展数据帧，DLC=4，4 个数据字节每帧自增 | B 板 `Tim:` 行同步递增 |
+| 2 | 触发发送 | A 板 | 单击 PB11（KEY_UP） | `0x555` 标准数据帧，DLC=4 | B 板 `Tri:` 行更新 |
+| 3 | 请求—应答 | B 板 | 单击 PB1（KEY_DOWN） | `0x777` 标准遥控帧，DLC=4，不带数据 | A 板收到后自动回 `0x666` 标准数据帧；B 板 `Req:` 行更新 |
+| 4 | 遥控帧发送 | B 板 | 单击 PB11（KEY_UP） | `0x789` 标准遥控帧，DLC=4 | 当前固件没有节点应答；板载界面不显示，需要 CAN 分析仪观察 |
 
-请求-响应流程完整演示了遥控帧（RTR）语义：请求帧只携带 ID，应答方收到后回送同 ID 数据。
+显示细节：
 
----
+- A 板发送后先自增数据再刷新屏幕，所以 A 板显示值比 B 板刚收到的值领先一帧；两板整体同步递增。
+- `0x789` 遥控帧只有总线报文，全通接收分支只显示 `0x0789AB0F / 0x555 / 0x666` 三种数据帧，因此界面上看不到。
 
-## 5. 硬件滤波器实验记录
+### OLED 布局
 
-bxCAN 滤波器实验按"配置 → 三节点实测 → 提交"的流程逐个完成，每种模式一个提交。现已整合为**编译期测试剖面**：
-`project.h` 中 `CAN_TEST_PROFILE` 一个宏同时切换 **过滤器配置 + 配套发送帧表**，五种档位全部位于当前 HEAD。
-历史提交保留各模式的第一手实测版本，可 checkout 对照：
-
-| 剖面宏 | Scale | Mode | 过滤语义 | 帧表通过预期 | 历史 Commit | 复测状态 |
-|---|---|---|---|---|---|---|
-| `CAN_TEST_ALL_PASS` | 32BIT | IDMASK | 掩码全 0，全部放行（A/B 对照基线） | 8/8 | — | ⬜ |
-| `CAN_TEST_16BIT_LIST` | 16BIT | IDLIST | 指定 0x234/0x345/0x567 + 遥控帧位 | 0x345、0x567 | `f56a8cf` | ⬜（含位布局复核⚠️） |
-| `CAN_TEST_16BIT_MASK` | 16BIT | IDMASK | 0x200~0x2FF 族（IDE/RTR 不关心）+ 0x320~0x32F | 8/16 | `37da406` | ⬜ |
-| `CAN_TEST_32BIT_LIST` | 32BIT | IDLIST | 标准 0x123 + 扩展 0x12345678 | 1/6（理论值⚠️） | `f3649a7` | ⬜ |
-| `CAN_TEST_32BIT_MASK` | 32BIT | IDMASK | 扩展 ID 高 21 位 = 0x123456 族的数据帧 | 4/8 | `15d2af2` | ⬜ |
-
-> ⚠️ 两处待台面复核的寄存器位布局问题（详见 task.c 分支注释）：
-> 1. 16 位列表模式的"指定遥控帧"列表项使用了 `|0x10`（EXID[1] 域），按 RM0008 RTR 应为 bit1(`0x02`)；
-> 2. 32 位列表模式下 `FilterMaskId*` 是否构成第二列表项，与 RM0008 的解读存在出入。
-> 复测流程：每档先按历史原值跑一遍记录现象，再按修正值对比，两种结果都回填上表。
-
-### 实验方法（三节点 + 剖面切换 + 异构滤波对照）
+屏幕从上到下四行，数据十六进制显示在对应行右侧（x=30）：
 
 ```
-节点A（CAN_NODE_SENDER）：BUTTON_UP 单击发一帧，按当前剖面帧表循环
-   │  数据首字节每帧 +1 → 接收端计数连续性 = 过滤丢帧的直接证据
+Tx:  / Rx:      第 1 行 (y=0)
+Tim:            第 2 行 (y=12)
+Req:            第 3 行 (y=24)
+Tri:            第 4 行 (y=36)
+```
+
+### 全通联调步骤
+
+1. A 板烧 `SENDER + ALL_PASS`，B 板烧 `RECEIVER + ALL_PASS`，接好总线上电。
+2. A 板开始定时发送，两板 `Tim:` 行递增。
+3. 按 A 板 PB11，两板 `Tri:` 行更新。
+4. 按 B 板 PB1，B 板发 `0x777`，A 板回 `0x666`，两板 `Req:` 行更新。
+5. 按 B 板 PB11，B 板发 `0x789`，总线上有报文但没有应答。
+
+---
+
+## 5. 四种硬件滤波器测试配置
+
+选中任一滤波配置后，发送板和接收板的行为一起切换：
+
+- 发送板：按一次 PB11 发送测试帧表里的下一帧，测试数据首字节自增；OLED 显示 `Tx 序号/总数 累计次数`。
+- 接收板：通用显示最近一帧通过滤波器的报文：第一行 `Std-D / Std-R / Ext-D / Ext-R 0xID`，第二行数据，第三行 `DLC` 和累计计数。
+- `CAN_TEST_ALL_PASS` 仍保持第 4 节的业务行为，不使用测试帧表。
+
+### 配置明细
+
+| 配置 | 滤波器设置 | 测试帧表 | 按当前代码预期的通过帧 |
+|---|---|---|---|
+| `CAN_TEST_ALL_PASS` | 32 位掩码，ID=0，掩码=0，全部放行 | 8 帧（全通模式下不参与发送） | 全部通过 |
+| `CAN_TEST_16BIT_LIST` | 16 位列表，Bank 0 的 4 个列表项：`0x345`、`0x000`、`0x234`、`0x567`（均为标准数据帧项） | 6 帧 | `0x345`、`0x567`（2/6） |
+| `CAN_TEST_16BIT_MASK` | 16 位掩码，两组：`0x320~0x32F` 和 `0x200~0x2FF` 的标准数据帧 | 16 帧 | 两段范围内的 6 个数据帧（6/16） |
+| `CAN_TEST_32BIT_LIST` | 32 位列表，两个列表项：标准 `0x123` 数据帧、扩展 `0x12345678` 数据帧 | 6 帧 | `0x123`、`0x12345678`（2/6） |
+| `CAN_TEST_32BIT_MASK` | 32 位掩码，扩展 ID 高 21 位等于 `0x123456`，要求扩展帧、数据帧 | 8 帧 | `0x12345600/01/03/FF`（4/8） |
+
+说明：
+
+- `16BIT_MASK` 的掩码里包含 IDE 和 RTR 匹配位（`0x10 | 0x08`），要求标准数据帧。帧表里 `0x201`、`0x321` 是遥控帧，会被挡掉，所以是 6/16；如果希望这两个遥控帧也通过，需要清掉掩码里的 `0x10 | 0x08`。
+- `16BIT_LIST` 的第 4 个列表项是 ID `0x000`，当前帧表没有 ID 0 的帧，不影响结果；帧表里的 `0x234` 是遥控帧，列表项是数据帧项，因此 `0x234` 不通过。
+- `32BIT_LIST` 的两个列表项分别是标准数据帧和扩展数据帧，预期通过 2 帧。
+- 以上通过数量是按当前代码和 RM0008 的寄存器位布局推导的，尚未做台面实测回填。
+
+### 测试帧表概况
+
+| 配置 | 条数 | 内容 |
+|---|---|---|
+| `ALL_PASS` | 8 | `0x12345600/01/03/FF`、`0x0789AB00/01/03/0F`，全部扩展数据帧 |
+| `32BIT_MASK` | 8 | 与 `ALL_PASS` 相同 |
+| `32BIT_LIST` | 6 | 标准 `0x123/0x234/0x345/0x456`、扩展 `0x12345678`、`0x0789ABCD` |
+| `16BIT_MASK` | 16 | `0x100/0x101/0x1FE/0x1FF`、`0x200/0x201/0x2FE/0x2FF`、`0x300/0x301/0x3FE/0x3FF`、`0x320/0x321/0x32E/0x32F`；每段第 2 帧为遥控帧，其余为数据帧 |
+| `16BIT_LIST` | 6 | 标准 `0x123`、`0x234`（遥控）、`0x345`、`0x456`、`0x567`、`0x678` |
+
+---
+
+## 6. 滤波实验方法
+
+### A/B 对照
+
+```
+A 板（SENDER + 目标测试配置）
+   │ 每按一次 PB11，按顺序发送测试帧表里的下一帧；数据首字节自增
    ▼
-节点B（CAN_NODE_RECEIVER，烧目标滤波剖面）：透帧日志，只显示通过滤波器的子集
-节点C（CAN_NODE_RECEIVER，烧 ALL_PASS）  ：透帧日志，显示总线全量作对照组
+B 板（RECEIVER + 同一测试配置）
+   通用显示最近一帧通过滤波器的报文，累计计数
 ```
 
-三节点异构对照（B 滤、C 全通）演示核心概念：**硬件过滤器只挡本节点 FIFO 的入口，
-不改变总线上的报文流**——同一帧被 B 拦截的同时仍被 C 完整接收。
-单剖面 A/B 对照（同一帧表，先全通档后滤波档）则用于逐档验证第 5 节预期矩阵。
+操作步骤：
 
-### 仲裁机制实测
+1. A 板烧 `SENDER + 目标测试配置`，B 板烧 `RECEIVER + 同一测试配置`。
+2. 两块板接到同一条总线，上电。
+3. 反复按 A 板 PB11，直到测试帧表轮完一遍。
+4. 记录 B 板能显示的 ID 和累计计数，与第 5 节的预期通过集合对照。
 
-多节点同时发送不同 ID 报文（ID 数值更小的优先级更高），观测到高优先级报文无损赢得总线、
-低优先级报文自动重发，且三节点环境下可见完整的优先级排序与任一节点对总上报文的应答（ACK）
-行为，验证了 CAN 的非破坏性位仲裁机制。
+### 关于全通对照板
 
----
+当前 `CAN_TEST_ALL_PASS` 的接收分支只显示 `0x0789AB0F`、`0x555`、`0x666` 三种业务帧，不显示测试帧表里的 `0x123`、`0x234` 等帧。因此现在不能直接用一块 `ALL_PASS` 接收板做"显示全部帧"的对照。如果实验需要全通对照，有两种做法：
 
-## 6. 编译与使用
-
-1. Keil MDK-ARM V5.32 打开 `MDK-ARM/STM32-CAN.uvprojx`，F7 编译
-2. 三节点联调：三块板 PA11/PA12 各接 TJA1050，H 线并 H 线、L 线并 L 线菊花链连成一条总线；
-   120Ω 终端电阻只接总线两个物理末端，中间节点用尽量短的分支线（stub）入网，避免支路反射
-3. 实验配置：`User/Device/project.h` 末尾两个宏——`CAN_TEST_PROFILE` 选剖面、`CAN_NODE_ROLE` 选角色；
-   异构滤波对照需编译三份固件（A 板 SENDER 档，B 板目标滤波剖面 RECEIVER 档，C 板 ALL_PASS RECEIVER 档）；
-   默认值（`ALL_PASS` + `RECEIVER`）与早期 HEAD 固件行为一致
-4. ST-Link / J-Link 通过 SWD 烧录
-5. CubeMX 重新生成：打开 `STM32-CAN.ioc`，用户代码全部位于 `USER CODE BEGIN/END` 标记内，不会丢失
-6. 新增 `.c/.h` 需手动加入 Keil 工程分组
+- 修改接收显示分支，让 `ALL_PASS` 模式也走通用显示；
+- 使用 CAN 分析仪观察总线全量报文。
 
 ---
 
-## 7. 已知限制与路线图
+## 7. 编译与烧录
 
-当前版本的诚实记录（也是下一步的输入）：
+1. Keil MDK-ARM 打开 `MDK-ARM/STM32-CAN.uvprojx`。
+2. 按第 3 节修改 `User/Device/project.h` 的两个宏。
+3. F7 编译。当前代码全量编译为 0 Error，可能出现"文件末尾缺换行"等警告，不影响功能。
+4. 连接 ST-Link / J-Link，F8 下载。
+5. 换板重复第 2~4 步。
 
-- [ ] 接收标志 `ucRxFlag` 建议补充 `volatile` 修饰（ISR 与主循环共享）
-- [ ] 驱动层为单帧缓存，高总线负载下后到帧会覆盖未消费的帧 → 计划改为帧队列
-- [ ] `HAL_CAN_AddTxMessage` 返回值未检查，3 个邮箱全忙时帧会静默丢弃 → 应用层补重试策略
-- [ ] 无错误处理：未使能 AutoBusOff，未实现 `HAL_CAN_ErrorCallback`，未监控 TEC/REC
-      → **下一步：Bus-Off 检测与退避恢复、报文超时监控、故障码记录**
-- [x] ~~四种滤波器配置散落在历史提交~~ → 已整合为 `CAN_TEST_PROFILE` 编译期开关，
-      过滤器配置与发送帧表联动切换（2026-11-07）；五档逐档复测与结果回填见第 5 节表格
-- [ ] 帧数据完整性目前仅校验 DLC，无 CRC/计数域 → 计划为上报帧增加帧计数
-      （滤波器复测已先行使用"数据首字节自增计数"验证丢帧行为，可平滑升级）
+工具链与工程设置：
+
+| 项 | 值 |
+|---|---|
+| IDE | Keil μVision V5.24.2 |
+| 编译器 | ARMCC V5.06 update 5 |
+| C 标准 | C99 |
+| 优化等级 | -O1 |
+| 运行库 | microlib |
+| 全通接收板参考占用 | Code 10,844 字节，RO-data 6,392 字节，RW-data 148 字节，ZI-data 2,364 字节 |
+
+其他：
+
+- 编译产物在 `MDK-ARM/STM32-CAN/`：`STM32-CAN.hex`、`STM32-CAN.axf`。
+- 新增 `.c/.h` 需要手动加入 Keil 工程分组。
+- 工程由 CubeMX 生成，用户代码位于 `USER CODE BEGIN/END` 标记内；重新生成 `.ioc` 不会覆盖用户代码。
 
 ---
 
-## 8. 相关项目
+## 8. 已知限制与后续计划
+
+- [ ] 接收缓存是单帧缓存，高总线负载时后到帧会覆盖未处理的帧 → 计划改为帧队列
+- [ ] `HAL_CAN_AddTxMessage` 返回值未检查，3 个发送邮箱全忙时帧会静默丢弃 → 应用层补发送状态判断和重试
+- [ ] 无 Bus-Off 恢复：`AutoBusOff = DISABLE`，已使能 `CAN_IT_BUSOFF` / `CAN_IT_ERROR`，但没有实现 `HAL_CAN_ErrorCallback` 和恢复流程 → 计划补 TEC/LEC 记录、延时等待和初始化模式恢复
+- [ ] `tim_device.c` 的 100ms 标志尚未加 `volatile`（当前通过跨文件函数读取，-O1 下可用） → 建议补上
+- [ ] 滤波配置的通过集合尚未台面实测回填，`16BIT_MASK` 的遥控帧匹配位和 `16BIT_LIST` 的 `0x234` 列表项需要实测确认
+- [ ] 全通接收分支不能作为滤波实验的全量显示对照 → 需要补通用显示模式或使用 CAN 分析仪
+- [ ] 帧数据完整性目前只校验 DLC，没有 CRC 或帧计数域 → 滤波实验已用"数据首字节自增"观察丢帧，可在此基础上增加帧计数
+- [ ] PB12/PB13 已在按键模块注册，但没有在 GPIO 初始化中配置；当前 CAN 业务不使用这两个按键
+- [ ] 滤波配置编译时会出现业务帧结构体的未引用警告（`#177-D`），属于条件编译的正常现象，不影响功能
+
+---
+
+## 9. 相关项目
 
 - 多任务系统与分层架构实践：[DingDa-H/stm32f1_rtos](https://github.com/DingDa-H/stm32f1_rtos)（FreeRTOS + 四层架构，本项目接收端代码结构与其 Device/Middle/APP 分层同源）
