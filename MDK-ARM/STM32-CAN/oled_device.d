@@ -1,6 +1,6 @@
 stm32-can\oled_device.o: ..\User\Device\oled_device.c
 stm32-can\oled_device.o: ..\User\Device\oled_device.h
-stm32-can\oled_device.o: ..\User\Device\project.h
+stm32-can\oled_device.o: ..\User\Config\project.h
 stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal.h
 stm32-can\oled_device.o: ../Core/Inc/stm32f1xx_hal_conf.h
 stm32-can\oled_device.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_rcc.h

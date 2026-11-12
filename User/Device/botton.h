@@ -7,9 +7,6 @@
 
 /**
  * @brief 		按钮设备数量枚举
- * @param 	
- * @data 			
- * @note 		
  */
 typedef enum
 {

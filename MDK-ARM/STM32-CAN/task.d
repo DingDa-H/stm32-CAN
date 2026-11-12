@@ -28,7 +28,8 @@ stm32-can\task.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
 stm32-can\task.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 stm32-can\task.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32-can\task.o: ../User/Device/can_device.h
-stm32-can\task.o: ../User/Device/project.h
+stm32-can\task.o: ..\User\Config\project.h
+stm32-can\task.o: ..\User\Config\can_cfg.h
 stm32-can\task.o: D:\keil5\ARM\ARMCC\Bin\..\include\string.h
 stm32-can\task.o: ../User/Device/oled_device.h
 stm32-can\task.o: ../User/Middle/button_mid.h
@@ -36,3 +37,4 @@ stm32-can\task.o: ../User/Device/botton.h
 stm32-can\task.o: ..\User\APP\task.h
 stm32-can\task.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdio.h
 stm32-can\task.o: ..\User\APP\can_app.h
+stm32-can\task.o: ../User/Middle/can_sm_mid.h

@@ -7,6 +7,7 @@
 #include "task.h"
 #include <stdio.h>
 #include "can_app.h"
+#include "can_sm_mid.h"
 
 
 /**
@@ -75,7 +76,8 @@ void Button_Init(void)
 
 void vtask(void)
 {
-    vBtnExecute(); // 统一处理物理按键状态机
+    vBtnExecute(); 					// 统一处理物理按键状态机
+	vCanSmMainFunction();     		// 统一处理 Bus-Off 监控与恢复
 
 #if (CAN_NODE_ROLE == CAN_NODE_SENDER)
     vCanAppSenderTask();

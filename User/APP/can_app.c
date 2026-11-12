@@ -4,14 +4,13 @@
 #include "tim_device.h"
 #include "button_mid.h"
 #include "oled_device.h"
-#include "project.h"             // 为了 CAN_TEST_PROFILE 等宏
+#include "project.h"             							// 为了 CAN_TEST_PROFILE 等宏
 #include "stm32f1xx_hal.h"
 #include <stdio.h>
-
-
-// 业务层发送缓存（与测试层隔离开）
-static uint8_t s_aucAppTxData[8] = {0x55, 0x66, 0x48, 0x77};
-static uint8_t s_aucAppTxData_1[8] = {0x00};
+// 业务层发送缓存（与测试层隔离开）：三类发送帧各用独立缓冲，Tim/Tri/Req 各自递增、互不影响
+static uint8_t s_aucAppTxData_Timing[8]  = {0x11, 0x22, 0x33, 0x44};
+static uint8_t s_aucAppTxData_Trigger[8] = {0x11, 0x22, 0x33, 0x44};
+static uint8_t s_aucAppTxData_Request[8] = {0x11, 0x22, 0x33, 0x44};
 
 // 触发发送标志位
 static uint8_t s_ucTriggerFlag;
@@ -23,7 +22,7 @@ static stCanTxParamTdf stTxMsg_Timing =
 {
 	.ulID    = 0x0789AB0F,
 	.ucDLC   = 4,
-	.pucData = s_aucAppTxData,
+	.pucData = s_aucAppTxData_Timing,
 	.ulIDE   = CAN_ID_EXT,
 	.ulRTR   = CAN_RTR_DATA,
 };
@@ -33,27 +32,27 @@ static stCanTxParamTdf stTxMsg_Trigger =
 {
 	.ulID    = 0x555,
 	.ucDLC   = 4,
-	.pucData = s_aucAppTxData,
+	.pucData = s_aucAppTxData_Trigger,
 	.ulIDE   = CAN_ID_STD,
 	.ulRTR   = CAN_RTR_DATA,
 };
 
-// 请求发送帧数据
+// 请求数据帧（请求方自身为 0x777 数据帧，仅作触发信号，对齐江协原版 0x3FF 的做法）
 static stCanTxParamTdf stTxMsg_Request =
 {
 	.ulID    = 0x777,
-	.ucDLC   = 4,
-	.pucData = s_aucAppTxData,
+	.ucDLC   = 0,
+	.pucData = s_aucAppTxData_Request,
 	.ulIDE   = CAN_ID_STD,
-	.ulRTR   = CAN_RTR_REMOTE,
+	.ulRTR   = CAN_RTR_DATA,
 };
 
-// 请求发送帧数据（遥控）
+// 请求遥控帧（0x789 标准遥控帧，对齐江协原版 0x300 遥控帧请求的做法，无数据场）
 static stCanTxParamTdf stTxMsg_Request_REMOTE =
 {
 	.ulID    = 0x789,
-	.ucDLC   = 4,
-	.pucData = s_aucAppTxData_1,
+	.ucDLC   = 0,
+	.pucData = s_aucAppTxData_Request,
 	.ulIDE   = CAN_ID_STD,
 	.ulRTR   = CAN_RTR_REMOTE,
 };
@@ -63,7 +62,7 @@ static stCanTxParamTdf stTxMsg_Request_DATA =
 {
 	.ulID    = 0x666,
 	.ucDLC   = 4,
-	.pucData = s_aucAppTxData,
+	.pucData = s_aucAppTxData_Request,
 	.ulIDE   = CAN_ID_STD,
 	.ulRTR   = CAN_RTR_DATA,
 };
@@ -154,11 +153,11 @@ void vCanAppSenderTask(void)
 		vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 
+		s_aucAppTxData_Timing[0]++;
+		s_aucAppTxData_Timing[1]++;
+		s_aucAppTxData_Timing[2]++;
+		s_aucAppTxData_Timing[3]++;
 		vMyCan_Transmit(&stTxMsg_Timing);
-		s_aucAppTxData[0]++; // 注意这里改成了 s_aucAppTxData
-		s_aucAppTxData[1]++;
-		s_aucAppTxData[2]++;
-		s_aucAppTxData[3]++;
 			
 		vOledWriteHexToBuffer(30,12,stTxMsg_Timing.pucData,stTxMsg_Timing.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledRefreshFromBuffer(OLED);
@@ -174,11 +173,11 @@ void vCanAppSenderTask(void)
 	if(s_ucTriggerFlag)
 	{
 		s_ucTriggerFlag = 0;		
+		s_aucAppTxData_Trigger[0]++;
+		s_aucAppTxData_Trigger[1]++;
+		s_aucAppTxData_Trigger[2]++;
+		s_aucAppTxData_Trigger[3]++;
 		vMyCan_Transmit(&stTxMsg_Trigger);
-		s_aucAppTxData[0]++;
-		s_aucAppTxData[1]++;
-		s_aucAppTxData[2]++;
-		s_aucAppTxData[3]++;
 			
 		vOledWriteHexToBuffer(30,36,stTxMsg_Trigger.pucData,stTxMsg_Trigger.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledRefreshFromBuffer(OLED);
@@ -194,9 +193,13 @@ void vCanAppSenderTask(void)
         vBspCan_GetRxData(aucAppData);
 		vBspCan_ClearRxFlag();
 		
-		if(stAppHeader.IDE == CAN_ID_STD 
-			&& stAppHeader.RTR == CAN_RTR_REMOTE 
-			&& stAppHeader.StdId == 0x777)
+		/* 请求遥控帧：收到 0x789 标准遥控帧 */
+		if(stAppHeader.IDE == CAN_ID_STD && stAppHeader.RTR == CAN_RTR_REMOTE && stAppHeader.StdId == 0x789)
+		{
+			s_ucRequestFlag = 1;
+		}
+		/* 请求数据帧：收到 0x777 标准数据帧（仅作触发，不看数据） */
+		if(stAppHeader.IDE == CAN_ID_STD && stAppHeader.RTR == CAN_RTR_DATA && stAppHeader.StdId == 0x777)
 		{
 			s_ucRequestFlag = 1;
 		}
@@ -206,13 +209,13 @@ void vCanAppSenderTask(void)
 	{
 		s_ucRequestFlag = 0;
 		
+		s_aucAppTxData_Request[0]++;
+		s_aucAppTxData_Request[1]++;
+		s_aucAppTxData_Request[2]++;
+		s_aucAppTxData_Request[3]++;
 		vMyCan_Transmit(&stTxMsg_Request_DATA);
-		s_aucAppTxData[0]++;
-		s_aucAppTxData[1]++;
-		s_aucAppTxData[2]++;
-		s_aucAppTxData[3]++;
 			
-		vOledWriteHexToBuffer(30,24,stTxMsg_Request.pucData,stTxMsg_Request.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		vOledWriteHexToBuffer(30,24,stTxMsg_Request_DATA.pucData,stTxMsg_Request_DATA.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledRefreshFromBuffer(OLED);
 	}
 
@@ -254,6 +257,7 @@ void vCanAppReceiverTask(void)
     emButEventTdf emEventDown = emBtnGetCurEvent(BUTTON_DOWN);
 	if (emEventUp == emBtnEvent_Click)
 	{
+		//请求遥控帧
 		vMyCan_Transmit(&stTxMsg_Request_REMOTE);
 		vBtnEventClear(BUTTON_UP);
 	}

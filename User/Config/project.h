@@ -55,7 +55,7 @@
 #define CAN_NODE_RECEIVER      		0U								// 接收节点（RECEIVER）
 #define CAN_NODE_SENDER        		1U								// 发送节点（SENDER）
 
-#define CAN_NODE_ROLE          		CAN_NODE_RECEIVER   			/* 当前节点类型 */
+#define CAN_NODE_ROLE          		CAN_NODE_SENDER   				/* 当前节点类型 */
 
 
 

@@ -3,8 +3,8 @@
 #include "button_mid.h"
 
 void vBtnEventUpdata(emButDevNumTdf emDevNum)
-{
-    uint32_t now = HAL_GetTick();
+{	//记录当前时间戳
+    uint32_t now = HAL_GetTick();			
     emBtnStatusTdf cur  = emBtnGetCurStatus(emDevNum);
     emBtnStatusTdf last = emBtnGetLastStatus(emDevNum);
 

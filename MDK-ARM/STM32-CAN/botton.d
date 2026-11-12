@@ -29,4 +29,4 @@ stm32-can\botton.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
 stm32-can\botton.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
 stm32-can\botton.o: D:\keil5\ARM\ARMCC\Bin\..\include\string.h
 stm32-can\botton.o: ..\User\Device\botton.h
-stm32-can\botton.o: ..\User\Device\project.h
+stm32-can\botton.o: ..\User\Config\project.h

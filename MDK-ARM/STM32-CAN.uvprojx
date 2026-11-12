@@ -336,7 +336,7 @@
               <MiscControls></MiscControls>
               <Define>USE_HAL_DRIVER,STM32F103xB</Define>
               <Undefine></Undefine>
-              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../User/APP;../User/Device;../User/Middle</IncludePath>
+              <IncludePath>../Core/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc;../Drivers/STM32F1xx_HAL_Driver/Inc/Legacy;../Drivers/CMSIS/Device/ST/STM32F1xx/Include;../Drivers/CMSIS/Include;../User/APP;../User/Device;../User/Middle;..\User\Config</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -724,6 +724,36 @@
               <FileName>button_mid.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\User\Middle\button_mid.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_sm_mid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Middle\can_sm_mid.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_sm_mid.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\Middle\can_sm_mid.h</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>User/Config</GroupName>
+          <Files>
+            <File>
+              <FileName>project.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\Config\project.h</FilePath>
+            </File>
+            <File>
+              <FileName>can_cfg.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Config\can_cfg.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_cfg.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\Config\can_cfg.h</FilePath>
             </File>
           </Files>
         </Group>

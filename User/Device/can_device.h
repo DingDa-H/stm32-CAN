@@ -10,7 +10,7 @@
 
 #include "stm32f1xx_hal.h"
 #include "project.h"
-
+#include "can_cfg.h"
 /**
  * @brief 	CAN 发送帧参数结构体
  * @note 	封装一帧 CAN 报文所需的所有参数
@@ -36,4 +36,16 @@ void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader);
 void vBspCan_GetRxData(uint8_t *pBuf);
 
 void vCanDeviceInit(const CAN_FilterTypeDef *pstFilter);
+
+uint8_t ucDeviceCan_GetBusOffFlag(void);
+void vDeviceCan_ClearBusOffFlag(void);
+
+// 新增：获取 Bus-Off 时esr里的信息
+void vCanDeviceGetBusOffSnapshot(Can_BusOffSnapshotTypeDef *pstSnapshot);
+
+/* 软件触发 CAN 退出 BusOff（ABOM=0） */
+void can_dev_request_busoff_recovery(CAN_HandleTypeDef *hcan);
+
+uint8_t ucCanDevice_ExitInitMode(void);
+uint8_t ucCanDevice_EnterInitMode(void);
 #endif
