@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include "can_app.h"
 #include "can_sm_mid.h"
+#include "can_timeout_mid.h"
 
 
 /**
@@ -78,6 +79,8 @@ void vtask(void)
 {
     vBtnExecute(); 					// 统一处理物理按键状态机
 	vCanSmMainFunction();     		// 统一处理 Bus-Off 监控与恢复
+	
+	vCanTimeoutTask();				// 报文超时监控任务
 
 #if (CAN_NODE_ROLE == CAN_NODE_SENDER)
     vCanAppSenderTask();

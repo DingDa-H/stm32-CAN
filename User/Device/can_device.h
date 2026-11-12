@@ -43,8 +43,6 @@ void vDeviceCan_ClearBusOffFlag(void);
 // 新增：获取 Bus-Off 时esr里的信息
 void vCanDeviceGetBusOffSnapshot(Can_BusOffSnapshotTypeDef *pstSnapshot);
 
-/* 软件触发 CAN 退出 BusOff（ABOM=0） */
-void can_dev_request_busoff_recovery(CAN_HandleTypeDef *hcan);
 
 uint8_t ucCanDevice_ExitInitMode(void);
 uint8_t ucCanDevice_EnterInitMode(void);

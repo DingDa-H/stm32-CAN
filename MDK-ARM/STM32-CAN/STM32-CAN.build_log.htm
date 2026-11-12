@@ -22,16 +22,28 @@ Dialog DLL:      TCM.DLL V1.32.0.0
  
 <h2>Project:</h2>
 D:\STM32-Study\CubeMxTest\STM32-CAN\MDK-ARM\STM32-CAN.uvprojx
-Project File Date:  11/11/2026
+Project File Date:  11/12/2026
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 5 (build 528)', folder: 'D:\keil5\ARM\ARMCC\Bin'
 Build target 'STM32-CAN'
 compiling can_cfg.c...
+compiling can_timeout_mid.c...
+compiling can_sm_mid.c...
+compiling can_test.c...
+..\User\APP\can_test.c(99): warning:  #1-D: last line of file ends without a newline
+  }
+..\User\APP\can_test.c: 1 warning, 0 errors
+compiling can_device.c...
+..\User\Device\can_device.c(203): warning:  #1-D: last line of file ends without a newline
+  }
+..\User\Device\can_device.c: 1 warning, 0 errors
+compiling can_app.c...
+compiling task.c...
 linking...
-Program Size: Code=11664 RO-data=6408 RW-data=188 ZI-data=2364  
+Program Size: Code=11784 RO-data=6416 RW-data=196 ZI-data=2364  
 FromELF: creating hex file...
-"STM32-CAN\STM32-CAN.axf" - 0 Error(s), 0 Warning(s).
+"STM32-CAN\STM32-CAN.axf" - 0 Error(s), 2 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -54,7 +66,7 @@ Package Vendor: Keil
 <h2>Collection of Component Files used:</h2>
 
    * Component: ARM::CMSIS:CORE:5.0.1
-Build Time Elapsed:  00:00:00
+Build Time Elapsed:  00:00:02
 </pre>
 </body>
 </html>

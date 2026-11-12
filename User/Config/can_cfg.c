@@ -10,3 +10,9 @@ const uint32_t CanSMBorTimeL1 = 100U;
 const uint32_t CanSMBorTimeL2 = 2000U;    
 
 const uint32_t CanSMBorTimeTxEnsured = 300U;
+
+/* ============ 报文超时监控表（只读配置，与 can_timeout_mid.c 的运行状态一一对应） ============ */
+const stCanTimeoutConfigTdf CanTimeoutConfigList[CAN_TIMEOUT_MONITOR_NUM] =
+{
+    { CAN_ID_TIMING_MSG, CAN_TIMEOUT_TIMING_MS },   // 周期报文 0x0789AB0F
+};

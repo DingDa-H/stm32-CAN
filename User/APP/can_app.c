@@ -7,6 +7,7 @@
 #include "project.h"             							// 为了 CAN_TEST_PROFILE 等宏
 #include "stm32f1xx_hal.h"
 #include <stdio.h>
+#include "can_timeout_mid.h"
 // 业务层发送缓存（与测试层隔离开）：三类发送帧各用独立缓冲，Tim/Tri/Req 各自递增、互不影响
 static uint8_t s_aucAppTxData_Timing[8]  = {0x11, 0x22, 0x33, 0x44};
 static uint8_t s_aucAppTxData_Trigger[8] = {0x11, 0x22, 0x33, 0x44};
@@ -20,7 +21,7 @@ static uint8_t s_ucRequestFlag;
 // 定时发送帧数据
 static stCanTxParamTdf stTxMsg_Timing =
 {
-	.ulID    = 0x0789AB0F,
+	.ulID    = CAN_ID_TIMING_MSG,
 	.ucDLC   = 4,
 	.pucData = s_aucAppTxData_Timing,
 	.ulIDE   = CAN_ID_EXT,
@@ -132,7 +133,8 @@ void vCanAppInit(void)
     stFilter.FilterMode = CAN_FILTERMODE_IDLIST;
     stFilter.FilterScale = CAN_FILTERSCALE_32BIT;
 #endif
-
+	//初始化需要监控的报文列表
+	vCanTimeoutInit();
     // 调用底层初始化，把算好的结构体传过去
     vCanDeviceInit(&stFilter);
 }
@@ -284,8 +286,9 @@ void vCanAppReceiverTask(void)
 		
 		if(stAppHeader.RTR == CAN_RTR_DATA)
 		{
-			if(stAppHeader.ExtId == 0x0789AB0F && stAppHeader.IDE == CAN_ID_EXT)
+			if(stAppHeader.IDE == CAN_ID_EXT && stAppHeader.ExtId == CAN_ID_TIMING_MSG)
 			{
+				vCanTimeoutUpdate(CAN_ID_TIMING_MSG);
 				vOledWriteHexToBuffer(30,12,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
 			if(stAppHeader.StdId == 0x555 && stAppHeader.IDE == CAN_ID_STD)
@@ -297,6 +300,14 @@ void vCanAppReceiverTask(void)
 				vOledWriteHexToBuffer(30,24,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
 		}
+	}
+	if (ucCanTimeoutGetFlag(CAN_ID_TIMING_MSG) == 1U)
+	{
+		vOledWriteStringToBuffer(6, 48, (uint8_t*)"TIMEOUT!", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
+	}
+	else
+	{
+		vOledWriteStringToBuffer(6, 48, (uint8_t*)"        ", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);   /* 清除残留 */
 	}
 	vOledRefreshFromBuffer(OLED);
 

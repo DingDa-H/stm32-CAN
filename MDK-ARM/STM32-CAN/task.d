@@ -38,3 +38,4 @@ stm32-can\task.o: ..\User\APP\task.h
 stm32-can\task.o: D:\keil5\ARM\ARMCC\Bin\..\include\stdio.h
 stm32-can\task.o: ..\User\APP\can_app.h
 stm32-can\task.o: ../User/Middle/can_sm_mid.h
+stm32-can\task.o: ../User/Middle/can_timeout_mid.h

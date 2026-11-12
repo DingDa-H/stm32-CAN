@@ -735,6 +735,16 @@
               <FileType>5</FileType>
               <FilePath>..\User\Middle\can_sm_mid.h</FilePath>
             </File>
+            <File>
+              <FileName>can_timeout_mid.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\User\Middle\can_timeout_mid.c</FilePath>
+            </File>
+            <File>
+              <FileName>can_timeout_mid.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\User\Middle\can_timeout_mid.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

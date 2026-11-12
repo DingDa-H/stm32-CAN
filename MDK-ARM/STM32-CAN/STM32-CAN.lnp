@@ -28,6 +28,7 @@
 "stm32-can\can_device.o"
 "stm32-can\button_mid.o"
 "stm32-can\can_sm_mid.o"
+"stm32-can\can_timeout_mid.o"
 "stm32-can\can_cfg.o"
 --library_type=microlib --strict --scatter "STM32-CAN\STM32-CAN.sct"
 --summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
