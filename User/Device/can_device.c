@@ -4,22 +4,25 @@
 	
 extern CAN_HandleTypeDef hcan;
 
-static volatile uint8_t ucRxFlag = 0;				// 接收标志：中断置1，主循环读取后清0（volatile：禁止编译器缓存）
+static stCanRxFrameTdf s_astRxQueue[RX_QUEUE_SIZE]; // 真正的存储池(环形队列)
 
-static CAN_RxHeaderTypeDef s_rxHeader;				// 接收报文的帧头信息
+// s_ucRxHead == s_ucRxTail为空、s_ucRxHead的下一个位置等于s_ucRxTail为满
+static volatile uint8_t s_ucRxHead = 0;             // 中断写的位置
+static volatile uint8_t s_ucRxTail = 0;             // 任务读的位置
 
-static uint8_t s_aucRxBuf[8];						// 全局接收缓存
-
+static volatile uint32_t s_ulRxOverflowCount = 0U;	// 队列满、来数据s_ulRxOverflowCount++表示溢出
+static volatile uint32_t s_ulTxFailCount = 0U;		// 发送失败累计：邮箱满或控制器未就绪
 static volatile uint8_t s_ucBusOffFlag = 0U;		// BusOff中断标志
 
 /**
  * @brief   发送一帧 CAN 报文
  * @param   pstTxMsg    CAN 发送帧参数结构体指针
+ * @retval 	返回 0=已入邮箱、1=发送失败（邮箱满或控制器未就绪）
  * @note	仅进行单次发送，发送失败需要重复发送的处理放在应用层
  */
-void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg)
+uint8_t ucDeviceCan_Transmit(const stCanTxParamTdf *pstTxMsg)
 {
-	CAN_TxHeaderTypeDef CAN_TxHeader;
+	CAN_TxHeaderTypeDef CAN_TxHeader = {0};
 
 	CAN_TxHeader.IDE = pstTxMsg->ulIDE;
 	CAN_TxHeader.DLC = pstTxMsg->ucDLC;
@@ -31,8 +34,15 @@ void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg)
     } else {
         CAN_TxHeader.ExtId = pstTxMsg->ulID;
     }
-	uint32_t ulTxMailbox;					//返回发送所使用的邮箱号
-	HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, pstTxMsg->pucData, &ulTxMailbox);
+	uint32_t ulTxMailbox = 0U;				//返回发送所使用的邮箱号
+
+	/* HAL 内部同时检查空闲邮箱和控制器状态，返回值即为本次发送结果 */
+	if (HAL_CAN_AddTxMessage(&hcan, &CAN_TxHeader, pstTxMsg->pucData, &ulTxMailbox) != HAL_OK)
+	{
+		s_ulTxFailCount++;
+		return 1U;
+	}
+	return 0U;
 }
 
 
@@ -71,17 +81,33 @@ void vCanDeviceInit(const CAN_FilterTypeDef *pstFilter)
  * @brief 		接收中断处理函数
  * @param 	
  * @retval 		
- * @note 		FIFO0收到报文自动执行
+ * @note 		FIFO0收到报文自动执行、入队
  */
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan)
 {
     // 判断是不是CAN1的中断
     if(hcan->Instance == CAN1)
     {
-        // 读取FIFO0整帧报文
-        HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &s_rxHeader, s_aucRxBuf);
-        // 置标志，主循环处理数据，禁止在这里刷屏、延时
-        ucRxFlag = 1;
+		uint8_t ucNextHead = (uint8_t)((s_ucRxHead + 1U) % RX_QUEUE_SIZE);//ucNextHead指下一次写入的位置，不是当前写入位置
+        //队列未满
+		if (ucNextHead != s_ucRxTail)					
+		{
+			// 读取FIFO0整帧报文入队
+			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &s_astRxQueue[s_ucRxHead].stHeader, s_astRxQueue[s_ucRxHead].aucData);
+			// 置标志，主循环处理数据，禁止在这里刷屏、延时
+			s_ucRxHead = ucNextHead;
+		}
+		else
+		{
+			// 4. 队列满了，丢弃最新帧。
+			// 注意：此时硬件 FIFO 里依然有这帧数据，如果不读出来，中断标志不会清除。
+			// 所以我们需要假装读一下，或者用一个临时的空结构体把它读走丢掉。
+			CAN_RxHeaderTypeDef stDummyHeader;
+			uint8_t aucDummyData[8];
+			HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO0, &stDummyHeader, aucDummyData);
+			
+			s_ulRxOverflowCount++; 
+		}
     }
 }
 /**
@@ -101,23 +127,6 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 }
 
 
-void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData)
-{
-	HAL_CAN_GetRxMessage(&hcan,CAN_RX_FIFO0,pHeader,RxData);
-}
-
-
-// 获取接收标志
-uint8_t ucBspCan_GetRxFlag(void)
-{
-    return ucRxFlag;
-}
-// 清除接收标志
-void vBspCan_ClearRxFlag(void)
-{
-    ucRxFlag = 0;
-}
-
 // 获取 BusOff 标志
 uint8_t ucDeviceCan_GetBusOffFlag(void)
 {
@@ -128,19 +137,56 @@ void vDeviceCan_ClearBusOffFlag(void)
 {
     s_ucBusOffFlag = 0U;
 }
-// 读取帧头数据
-void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader)
+/**
+ * @brief 		CAN 接收帧出队
+ * @param 		pstFrame 应用层传入的空结构体指针，用于接收出队的数据
+* @retval 		1U 表示队列不为空， 0U 表示队列为空
+ * @note 		非阻塞接口。从硬件接收环形队列中取出最旧的一帧，
+ * 				通过指针直接将数据拷贝给应用层，并推进读指针（Tail）。
+ */
+uint8_t ucDeviceCan_ReadRxFrame(stCanRxFrameTdf *pstFrame)
 {
-    *pHeader = s_rxHeader;
-}
-// 读取接收数据数组
-void vBspCan_GetRxData(uint8_t *pBuf)
-{
-    uint8_t len = s_rxHeader.DLC;
-    for(uint8_t i = 0; i < len; i++)
+    // 0. 入参检查：空指针直接返回“无数据”
+    if (pstFrame == NULL)
     {
-        pBuf[i] = s_aucRxBuf[i];
+        return 0U;
     }
+
+    // 1. 判空：如果头指针和尾指针相等，说明里面没东西
+    if (s_ucRxHead == s_ucRxTail)
+    {
+        return 0U; // 返回 0，告诉应用层“没数据了”
+    }
+
+    // 2. 取数据：把 Tail 指向的那一帧，整体拷贝给应用层传进来的空盒子
+    // 直接把结构体赋值给指针指向的内存（C语言支持整体赋值，相当于 memcpy）
+    *pstFrame = s_astRxQueue[s_ucRxTail];
+
+    // 3. 移动尾指针：数据被取走了，Tail 往前走一步（遇到末尾绕回头部）
+    s_ucRxTail = (uint8_t)((s_ucRxTail + 1U) % RX_QUEUE_SIZE);
+
+    // 4. 返回 1，不为空，有数据
+    return 1U;
+}
+
+/**
+ * @brief 		读取接收队列溢出累计次数
+ * @retval 		队列满时被丢弃的帧数
+ * @note 		供台架验证与调试观察，只读接口
+ */
+uint32_t ulDeviceCan_GetRxOverflowCount(void)
+{
+    return s_ulRxOverflowCount;
+}
+
+/**
+ * @brief 		读取发送失败累计次数
+ * @retval 		发送失败（邮箱满或控制器未就绪）的次数
+ * @note 		供台架验证与调试观察，只读接口
+ */
+uint32_t ulDeviceCan_GetTxFailCount(void)
+{
+    return s_ulTxFailCount;
 }
 
 /**
@@ -173,6 +219,7 @@ void vCanDeviceGetBusOffSnapshot(Can_BusOffSnapshotTypeDef *pstSnapshot)
  */
 uint8_t ucCanDevice_EnterInitMode(void)
 {
+	HAL_CAN_AbortTxRequest(&hcan, CAN_TX_MAILBOX0|CAN_TX_MAILBOX1|CAN_TX_MAILBOX2);
     if (HAL_CAN_Stop(&hcan) != HAL_OK)
     {
         /* HAL 状态机可能因上次超时锁在 ERROR，重走 Init 解锁后再试一次 */

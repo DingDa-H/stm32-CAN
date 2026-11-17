@@ -1,6 +1,6 @@
 # STM32-CAN 总线驱动验证与多节点通信
 
-基于 STM32F103C8T6（bxCAN）+ TJA1050 的 CAN 2.0B 多节点通信验证项目：定时/触发/请求—应答（遥控帧与数据帧两种请求）通信策略、四种硬件滤波器测试配置、ABOM=0 软件 Bus-Off 检测与恢复、报文超时监控，配套 128×64 OLED 显示与按键交互。代码按 配置层（Config）/ 设备驱动层（Device）/ 中间件（Middle）/ 应用层（APP）组织，接口边界参照 AUTOSAR 思路。
+基于 STM32F103C8T6（bxCAN）+ TJA1050 的 CAN 2.0B 多节点通信验证项目：定时/触发/请求—应答（遥控帧与数据帧两种请求）通信策略、四种硬件滤波器测试配置、ABOM=0 软件 Bus-Off 检测与恢复、报文超时监控、接收帧队列与发送结果检查，配套 128×64 OLED 显示与按键交互。代码按 配置层（Config）/ 设备驱动层（Device）/ 中间件（Middle）/ 应用层（APP）组织，接口边界参照 AUTOSAR 思路。
 
 [![Platform](https://img.shields.io/badge/MCU-STM32F103C8T6-blue)]()
 [![Bus](https://img.shields.io/badge/CAN-500kbps-orange)]()
@@ -51,10 +51,11 @@ STM32-CAN/
 └── User/
     ├── Config/                      编译期配置层（只读参数）
     │   ├── project.h                测试配置、节点类型、OLED/按键公共宏
-    │   └── can_cfg.c/h              Bus-Off 恢复参数、超时监控表（extern const，驻 Flash）
+    │   └── can_cfg.c/h              Bus-Off 恢复参数、超时监控表、接收队列深度
     ├── Device/                      设备驱动层
-    │   ├── can_device.c/h           CAN 收发、滤波器下发、接收/Bus-Off 中断标志、
-    │   │                            ESR 快照、进入/退出初始化模式
+    │   ├── can_device.c/h           CAN 收发（返回发送结果、失败计数）、接收环形队列、
+    │   │                            滤波器下发、接收/Bus-Off 中断标志、ESR 快照、
+    │   │                            进入/退出初始化模式
     │   ├── tim_device.c/h           TIM2 100ms 周期标志
     │   ├── oled_device.c/h          OLED 驱动（软件 I2C + 显存缓冲）
     │   ├── oled_font.c/h            字库
@@ -94,7 +95,7 @@ while (1) vtask()
       └─ CAN_NODE_RECEIVER → vCanAppReceiverTask()
 ```
 
-中断与任务的分工是固定的：接收中断只把帧头与数据存入驱动层静态缓存并置标志；Bus-Off 中断（`HAL_CAN_ErrorCallback`）只核验 `ESR.BOFF` 并置标志。所有确认、计时、恢复、刷屏都发生在任务上下文，中断里不延时、不阻塞。
+中断与任务的分工是固定的：接收中断把整帧写入驱动层环形队列（深度 `RX_QUEUE_SIZE`）并推进写指针，队列满时丢弃最新帧并累加溢出计数；Bus-Off 中断（`HAL_CAN_ErrorCallback`）只核验 `ESR.BOFF` 并置标志。所有确认、计时、恢复、刷屏都发生在任务上下文，中断里不延时、不阻塞。
 
 ### 参数下发路径
 
@@ -103,9 +104,10 @@ project.h 的 CAN_TEST_PROFILE
   → can_app.c 的 vCanAppInit()：填写 CAN_FilterTypeDef（Bank 0、FIFO0、ID/掩码/模式/位宽）
   → can_device.c 的 vCanDeviceInit()：交给 HAL 下发并启动
 
-can_cfg.c 的只读参数
+can_cfg.h/.c 的只读参数
   → can_sm_mid.c：L1/L2 恢复策略参数
   → can_timeout_mid.c：监控 ID 与超时阈值
+  → can_device.c：接收环形队列深度（RX_QUEUE_SIZE）
 ```
 
 四种滤波配置的参数全部集中在 `vCanAppInit()`；运行策略参数全部集中在 `can_cfg`，中间件与应用层不再硬编码数值。
@@ -154,6 +156,7 @@ can_cfg.c 的只读参数
 | `CanSMBorTimeL2` | 2000 ms | L2 慢恢复等待时间 |
 | `CanSMBorTimeTxEnsured` | 300 ms | 恢复后观察窗口 |
 | `CAN_ID_TIMING_MSG` / `CAN_TIMEOUT_TIMING_MS` | `0x0789AB0F` / 300 ms | 超时监控表条目（周期报文） |
+| `RX_QUEUE_SIZE` | 8 | 接收环形队列深度（`can_cfg.h`，取值 2~255） |
 
 常用固件组合：
 
@@ -182,7 +185,8 @@ can_cfg.c 的只读参数
 显示细节：
 
 - `Tim:`/`Tri:`/`Req:` 三条发送流各用独立数据缓冲、各自递增，互不影响；
-- 顺序固定为"先自增 → 再发送 → 再刷新"，发送板显示的就是实际发出的帧内容，两板数值一致。
+- 顺序固定为"先自增 → 再发送 → 再刷新"，发送板显示的就是实际发出的帧内容，两板数值一致；
+- 发送失败（邮箱满或控制器未就绪）时：定时帧丢弃该周期，下一周期发送新值；触发/请求帧保持待发状态，重试的是已经准备好的同一帧数据，计数不会随重试累加。
 
 ### OLED 布局
 
@@ -266,19 +270,18 @@ B 板（RECEIVER + 同一测试配置）
 
 - 新增 `.c/.h` 必须手动加入 Keil 工程分组（`User/Config` 已在头文件搜索路径）。
 - 工程由 CubeMX 生成，用户代码位于 `USER CODE BEGIN/END` 标记内，重新生成 `.ioc` 不覆盖用户代码。
-- 程序占用参考值待加入 Bus-Off 恢复与超时监控后以最新编译结果更新；编译可能出现文件末尾缺换行、条件编译下业务帧结构体未引用（`#177-D`）等警告，不影响功能。
+- 程序占用（发送节点 + `ALL_PASS` 配置实测）：Code 11,996 B、RO-data 6,416 B、RW-data 204 B、ZI-data 2,628 B。
+- 编译可能出现条件编译下业务帧结构体未引用（`#177-D`）等警告，不影响功能。
 
 ---
 
 ## 8. 已知限制与后续计划
 
-已实现：ABOM=0 软件 Bus-Off 检测与 L1/L2 恢复、ESR/TEC/LEC 快照、报文超时监控（覆盖周期报文 `0x0789AB0F`）。
+已实现：ABOM=0 软件 Bus-Off 检测与 L1/L2 恢复、ESR/TEC/LEC 快照、报文超时监控（覆盖周期报文 `0x0789AB0F`）、8 帧接收环形队列（满时丢最新帧）、发送结果检查与失败计数、恢复前中止挂起邮箱。
 
-- [ ] 接收缓存是单帧缓存，高总线负载时后到帧会覆盖未处理的帧 → 计划改为帧队列
-- [ ] `HAL_CAN_AddTxMessage` 返回值未检查，3 个发送邮箱全忙时帧会静默丢弃 → 应用层补发送状态判断和重试
-- [ ] Bus-Off 恢复不重发故障期间丢弃的报文（单次发送语义下重试归应用层），且退出初始化模式时挂起邮箱中的旧请求可能被重新发出 → 计划补发送队列
+- [ ] Bus-Off 恢复不重发故障期间丢弃的报文；故障期间发送失败的事件帧由应用层重试（当前触发/请求帧会一直重试到入邮箱成功）→ 后续补发送队列
+- [ ] 接收队列溢出次数可用 `ulDeviceCan_GetRxOverflowCount()` 查询、发送失败次数可用 `ulDeviceCan_GetTxFailCount()` 查询，两者尚未在 OLED 上显示
 - [ ] 超时监控目前只覆盖 1 个 ID，扩监控项步骤见 §2 → ADC 上报帧接入时按流程添加
-- [ ] `tim_device.c` 的 100ms 标志尚未加 `volatile`（当前通过跨文件函数读取，-O1 下可用）
 - [ ] 滤波配置的通过集合尚未台面实测回填，`16BIT_MASK` 的遥控帧匹配位和 `16BIT_LIST` 的 `0x234` 列表项需实测确认
 - [ ] 全通接收分支不能作为滤波实验的全量显示对照 → 补通用显示模式或使用 CAN 分析仪
 - [ ] 帧数据完整性只校验 DLC，没有 CRC 或帧计数域

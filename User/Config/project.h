@@ -57,6 +57,4 @@
 
 #define CAN_NODE_ROLE          		CAN_NODE_SENDER   				/* 当前节点类型 */
 
-
-
 #endif

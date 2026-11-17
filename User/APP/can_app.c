@@ -144,6 +144,8 @@ void vCanAppInit(void)
  */
 void vCanAppSenderTask(void)
 {
+	// 用于接收队列的数据
+	stCanRxFrameTdf stFrame; 	
 #if (CAN_TEST_PROFILE == CAN_TEST_ALL_PASS)
 	// 1. 定时发送
 	if(ucTimDeviceGetFlag())
@@ -159,9 +161,10 @@ void vCanAppSenderTask(void)
 		s_aucAppTxData_Timing[1]++;
 		s_aucAppTxData_Timing[2]++;
 		s_aucAppTxData_Timing[3]++;
-		vMyCan_Transmit(&stTxMsg_Timing);
-			
-		vOledWriteHexToBuffer(30,12,stTxMsg_Timing.pucData,stTxMsg_Timing.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		if (ucDeviceCan_Transmit(&stTxMsg_Timing) == 0U)
+		{
+			vOledWriteHexToBuffer(30,12,stTxMsg_Timing.pucData,stTxMsg_Timing.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		}
 		vOledRefreshFromBuffer(OLED);
 	}
 	
@@ -169,62 +172,65 @@ void vCanAppSenderTask(void)
 	emButEventTdf emEventUp = emBtnGetCurEvent(BUTTON_UP);
 	if (emEventUp == emBtnEvent_Click)
 	{
-		s_ucTriggerFlag = 1;
-		vBtnEventClear(BUTTON_UP);
-	}
-	if(s_ucTriggerFlag)
-	{
-		s_ucTriggerFlag = 0;		
+		/* 数据只在事件到达时自增一次，失败重发的是同一帧 */
 		s_aucAppTxData_Trigger[0]++;
 		s_aucAppTxData_Trigger[1]++;
 		s_aucAppTxData_Trigger[2]++;
 		s_aucAppTxData_Trigger[3]++;
-		vMyCan_Transmit(&stTxMsg_Trigger);
-			
-		vOledWriteHexToBuffer(30,36,stTxMsg_Trigger.pucData,stTxMsg_Trigger.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-		vOledRefreshFromBuffer(OLED);
+		s_ucTriggerFlag = 2U;			/* 2 = 数据已备好，待发送 */
+		vBtnEventClear(BUTTON_UP);
+	}
+	if(s_ucTriggerFlag == 2U)
+	{
+		if (ucDeviceCan_Transmit(&stTxMsg_Trigger) == 0U)
+		{
+			s_ucTriggerFlag = 0U;
+			vOledWriteHexToBuffer(30,36,stTxMsg_Trigger.pucData,stTxMsg_Trigger.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			vOledRefreshFromBuffer(OLED);
+		}
 	}
 	
 	// 3. 请求接收处理
-	if(ucBspCan_GetRxFlag() == 1)
+	while(ucDeviceCan_ReadRxFrame(&stFrame) == 1U)		// == 1表示队列里面有数据
 	{
-		CAN_RxHeaderTypeDef stAppHeader;
-        uint8_t aucAppData[8];
-		
-        vBspCan_GetRxHeader(&stAppHeader);
-        vBspCan_GetRxData(aucAppData);
-		vBspCan_ClearRxFlag();
-		
 		/* 请求遥控帧：收到 0x789 标准遥控帧 */
-		if(stAppHeader.IDE == CAN_ID_STD && stAppHeader.RTR == CAN_RTR_REMOTE && stAppHeader.StdId == 0x789)
+		if(stFrame.stHeader.IDE == CAN_ID_STD && stFrame.stHeader.RTR == CAN_RTR_REMOTE && stFrame.stHeader.StdId == 0x789)
 		{
 			s_ucRequestFlag = 1;
 		}
 		/* 请求数据帧：收到 0x777 标准数据帧（仅作触发，不看数据） */
-		if(stAppHeader.IDE == CAN_ID_STD && stAppHeader.RTR == CAN_RTR_DATA && stAppHeader.StdId == 0x777)
+		if(stFrame.stHeader.IDE == CAN_ID_STD && stFrame.stHeader.RTR == CAN_RTR_DATA && stFrame.stHeader.StdId == 0x777)
 		{
 			s_ucRequestFlag = 1;
 		}
 	}
-	
-	if(s_ucRequestFlag)
+	if (s_ucRequestFlag == 1U)			/* 1 = 收到请求，数据尚未准备 */
 	{
-		s_ucRequestFlag = 0;
-		
 		s_aucAppTxData_Request[0]++;
 		s_aucAppTxData_Request[1]++;
 		s_aucAppTxData_Request[2]++;
 		s_aucAppTxData_Request[3]++;
-		vMyCan_Transmit(&stTxMsg_Request_DATA);
-			
-		vOledWriteHexToBuffer(30,24,stTxMsg_Request_DATA.pucData,stTxMsg_Request_DATA.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-		vOledRefreshFromBuffer(OLED);
+		s_ucRequestFlag = 2U;			/* 2 = 数据已备好，待发送 */
+	}
+	if (s_ucRequestFlag == 2U)
+	{
+		if (ucDeviceCan_Transmit(&stTxMsg_Request_DATA) == 0U)
+		{
+			s_ucRequestFlag = 0U;		/* 发送成功才清标志 */
+			vOledWriteHexToBuffer(30,24,stTxMsg_Request_DATA.pucData,stTxMsg_Request_DATA.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+			vOledRefreshFromBuffer(OLED);
+		}
 	}
 
 #else
 	// 发送板 + 滤波档：按一下按钮发一条，调用测试层接口
 	static uint32_t s_ulSent = 0;
 	char acLine[24];
+
+	/* 滤波档发送板不处理接收业务：清空队列，避免溢出计数持续增长 */
+	while (ucDeviceCan_ReadRxFrame(&stFrame) == 1U)
+	{
+	}
 
 	if (emBtnGetCurEvent(BUTTON_UP) == emBtnEvent_Click)
 	{
@@ -253,20 +259,22 @@ void vCanAppSenderTask(void)
  */
 void vCanAppReceiverTask(void)
 {
+	stCanRxFrameTdf stFrame;
 #if (CAN_TEST_PROFILE == CAN_TEST_ALL_PASS)
 	// 1. 按键请求部分
 	emButEventTdf emEventUp   = emBtnGetCurEvent(BUTTON_UP);
     emButEventTdf emEventDown = emBtnGetCurEvent(BUTTON_DOWN);
 	if (emEventUp == emBtnEvent_Click)
 	{
-		//请求遥控帧
-		vMyCan_Transmit(&stTxMsg_Request_REMOTE);
-		vBtnEventClear(BUTTON_UP);
+		if (ucDeviceCan_Transmit(&stTxMsg_Request_REMOTE) == 0U) {
+			vBtnEventClear(BUTTON_UP);
+		}
 	}
 	if (emEventDown == emBtnEvent_Click)
 	{
-		vMyCan_Transmit(&stTxMsg_Request);
-		vBtnEventClear(BUTTON_DOWN);
+		if (ucDeviceCan_Transmit(&stTxMsg_Request) == 0U) {
+			vBtnEventClear(BUTTON_DOWN);
+		}
 	}
 	
 	// 2. 接收显示部分
@@ -275,29 +283,22 @@ void vCanAppReceiverTask(void)
 	vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 	vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 
-	if(ucBspCan_GetRxFlag())
+	while (ucDeviceCan_ReadRxFrame(&stFrame) == 1U)
 	{
-		CAN_RxHeaderTypeDef stAppHeader;
-        uint8_t aucAppData[8];
-		
-        vBspCan_GetRxHeader(&stAppHeader);
-        vBspCan_GetRxData(aucAppData);
-		vBspCan_ClearRxFlag();
-		
-		if(stAppHeader.RTR == CAN_RTR_DATA)
+		if(stFrame.stHeader.RTR == CAN_RTR_DATA)
 		{
-			if(stAppHeader.IDE == CAN_ID_EXT && stAppHeader.ExtId == CAN_ID_TIMING_MSG)
+			if(stFrame.stHeader.IDE == CAN_ID_EXT && stFrame.stHeader.ExtId == CAN_ID_TIMING_MSG)
 			{
 				vCanTimeoutUpdate(CAN_ID_TIMING_MSG);
-				vOledWriteHexToBuffer(30,12,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+				vOledWriteHexToBuffer(30,12,stFrame.aucData,stFrame.stHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
-			if(stAppHeader.StdId == 0x555 && stAppHeader.IDE == CAN_ID_STD)
+			if(stFrame.stHeader.StdId == 0x555 && stFrame.stHeader.IDE == CAN_ID_STD)
 			{
-				vOledWriteHexToBuffer(30,36,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+				vOledWriteHexToBuffer(30,36,stFrame.aucData,stFrame.stHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
-			if(stAppHeader.StdId == 0x666 && stAppHeader.IDE == CAN_ID_STD)
+			if(stFrame.stHeader.StdId == 0x666 && stFrame.stHeader.IDE == CAN_ID_STD)
 			{
-				vOledWriteHexToBuffer(30,24,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+				vOledWriteHexToBuffer(30,24,stFrame.aucData,stFrame.stHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
 		}
 	}
@@ -316,37 +317,33 @@ void vCanAppReceiverTask(void)
 	static uint32_t s_ulRxCnt = 0;
 	char acLine[24];
 
-	if (ucBspCan_GetRxFlag() == 1)
+	// 【修改】统一用 while 循环读取队列
+	while (ucDeviceCan_ReadRxFrame(&stFrame) == 1U)
 	{
-		CAN_RxHeaderTypeDef stAppHeader;
-		uint8_t aucAppData[8];
 		const char *pcType;
 		uint32_t ulId;
 
-		vBspCan_GetRxHeader(&stAppHeader);
-		vBspCan_GetRxData(aucAppData);
-		vBspCan_ClearRxFlag();
-
 		s_ulRxCnt++;
 
-		if (stAppHeader.IDE == CAN_ID_EXT)
+		if (stFrame.stHeader.IDE == CAN_ID_EXT)
 		{
-			pcType = (stAppHeader.RTR == CAN_RTR_REMOTE) ? "Ext-R" : "Ext-D";
-			ulId   = stAppHeader.ExtId;
+			pcType = (stFrame.stHeader.RTR == CAN_RTR_REMOTE) ? "Ext-R" : "Ext-D";
+			ulId   = stFrame.stHeader.ExtId;
 		}
 		else
 		{
-			pcType = (stAppHeader.RTR == CAN_RTR_REMOTE) ? "Std-R" : "Std-D";
-			ulId   = stAppHeader.StdId;
+			pcType = (stFrame.stHeader.RTR == CAN_RTR_REMOTE) ? "Std-R" : "Std-D";
+			ulId   = stFrame.stHeader.StdId;
 		}
 
 		snprintf(acLine, sizeof(acLine), "%s 0x%08lX", pcType, (unsigned long)ulId);
 		vOledWriteStringToBuffer(0,0,(uint8_t*)acLine,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 
-		vOledWriteHexToBuffer(0,12,aucAppData,stAppHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		// 【修改】用 stFrame.aucData
+		vOledWriteHexToBuffer(0,12,stFrame.aucData,stFrame.stHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 
 		snprintf(acLine, sizeof(acLine), "DLC:%lu Cnt:%lu",
-					(unsigned long)stAppHeader.DLC, (unsigned long)s_ulRxCnt);
+					(unsigned long)stFrame.stHeader.DLC, (unsigned long)s_ulRxCnt);
 		vOledWriteStringToBuffer(0,24,(uint8_t*)acLine,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 	}
 

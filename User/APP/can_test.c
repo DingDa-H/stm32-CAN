@@ -89,7 +89,7 @@ void vCanTestSendOneByIndex(uint8_t ucIndex)
 {
     if (ucIndex >= CAN_TXMSG_NUM) return;
     
-    vMyCan_Transmit(&stTxMsgArray[ucIndex]);
+    ucDeviceCan_Transmit(&stTxMsgArray[ucIndex]);
     s_aucTestData[0]++; // 数据首字节自增，用于接收端检测丢帧
 }
 

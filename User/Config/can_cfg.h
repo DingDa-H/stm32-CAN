@@ -32,4 +32,7 @@ typedef struct
 
 extern const stCanTimeoutConfigTdf CanTimeoutConfigList[CAN_TIMEOUT_MONITOR_NUM];
 
+/* ============ CAN 接收队列配置 ============ */
+#define RX_QUEUE_SIZE            8U            /* 接收环形队列深度（取值范围 2~255，与下标类型一致） */
+
 #endif /* __CAN_CFG_H */

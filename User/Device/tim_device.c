@@ -4,8 +4,8 @@
 #include <stdio.h>
 
 
-//定时触发标志位
-static uint8_t s_ucTimFlag;
+//定时触发标志位（TIM2 中断写、任务读，必须 volatile）
+static volatile uint8_t s_ucTimFlag = 0U;
 
 /**
  * @brief  TIM2更新中断回调，100ms进一次

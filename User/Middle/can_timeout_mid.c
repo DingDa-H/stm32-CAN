@@ -1,4 +1,5 @@
 // can_timeout_mid.c
+// 实现超时监控功能
 #include "can_timeout_mid.h"
 #include "can_cfg.h"                // 监控配置表（ID/阈值，Flash 只读）
 #include "stm32f1xx_hal.h"

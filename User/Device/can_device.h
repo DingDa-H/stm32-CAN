@@ -23,17 +23,21 @@ typedef struct
 	uint32_t 	ulIDE;		/* ID 类型：CAN_ID_STD 或 CAN_ID_EXT */
 	uint32_t 	ulRTR;		/* 帧类型：CAN_RTR_DATA 或 CAN_RTR_REMOTE */
 } stCanTxParamTdf;
+/**
+ * @brief 	CAN 接收帧结构体
+ * @note 	封装一帧完整的 CAN 接收报文（帧头信息 + 数据），用于环形队列的整体入队与出队
+ */
+typedef struct {
+    CAN_RxHeaderTypeDef stHeader; // 帧信息
+    uint8_t aucData[8];           // 数据
+} stCanRxFrameTdf;
 
-
-void vMyCan_Transmit(const stCanTxParamTdf *pstTxMsg);
-void vMyCan_Receive(CAN_RxHeaderTypeDef *pHeader, uint8_t *RxData);
+uint8_t ucDeviceCan_Transmit(const stCanTxParamTdf *pstTxMsg);
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan);
-//uint8_t ucMyCan_ReceiveFlag(void);
 
-uint8_t ucBspCan_GetRxFlag(void);
-void vBspCan_ClearRxFlag(void);
-void vBspCan_GetRxHeader(CAN_RxHeaderTypeDef *pHeader);
-void vBspCan_GetRxData(uint8_t *pBuf);
+uint8_t ucDeviceCan_ReadRxFrame(stCanRxFrameTdf *pstFrame);
+uint32_t ulDeviceCan_GetRxOverflowCount(void);
+uint32_t ulDeviceCan_GetTxFailCount(void);
 
 void vCanDeviceInit(const CAN_FilterTypeDef *pstFilter);
 
