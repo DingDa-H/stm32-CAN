@@ -1,6 +1,6 @@
 # STM32-CAN 总线驱动验证与多节点通信
 
-基于 STM32F103C8T6（bxCAN）+ TJA1050 的 CAN 2.0B 多节点通信验证项目：定时/触发/请求—应答（遥控帧与数据帧两种请求）通信策略、四种硬件滤波器测试配置、ABOM=0 软件 Bus-Off 检测与恢复、报文超时监控、接收帧队列与发送结果检查，配套 128×64 OLED 显示与按键交互。代码按 配置层（Config）/ 设备驱动层（Device）/ 中间件（Middle）/ 应用层（APP）组织，接口边界参照 AUTOSAR 思路。
+基于 STM32F103C8T6（bxCAN）+ TJA1050 的 CAN 2.0B 多节点通信验证项目：定时/触发/请求—应答（遥控帧与数据帧两种请求）通信策略、四种硬件滤波器测试配置、ADC 周期上报、ABOM=0 软件 Bus-Off 检测与恢复、报文超时监控、接收帧队列与发送结果检查，配套 128×64 OLED 显示与按键交互。代码按 配置层（Config）/ 设备驱动层（Device）/ 中间件（Middle）/ 应用层（APP）组织，接口边界参照 AUTOSAR 思路。
 
 [![Platform](https://img.shields.io/badge/MCU-STM32F103C8T6-blue)]()
 [![Bus](https://img.shields.io/badge/CAN-500kbps-orange)]()
@@ -19,6 +19,7 @@
 | 时钟 | HSE 8MHz → PLL×9 → SYSCLK 72MHz，APB1 = 36MHz |
 | CAN 收发器 | TJA1050（5V 供电，3.3V IO） |
 | CAN 引脚 | PA11（CAN_RX）/ PA12（CAN_TX） |
+| ADC | ADC1_IN0（PA0），12 位，单次转换，采样 55.5 周期，ADCCLK=12MHz |
 | OLED | 128×64，软件模拟 I2C：PB8=SCL、PB9=SDA（开漏输出） |
 | 按键 | PB1 / PB11（低有效）、PB12 / PB13（高有效） |
 | 调试 | SWD（PA13/PA14） |
@@ -56,6 +57,7 @@ STM32-CAN/
     │   ├── can_device.c/h           CAN 收发（返回发送结果、失败计数）、接收环形队列、
     │   │                            滤波器下发、接收/Bus-Off 中断标志、ESR 快照、
     │   │                            进入/退出初始化模式
+    │   ├── adc_device.c/h           ADC1 单次采样：校准、轮询超时保护、返回上次有效值
     │   ├── tim_device.c/h           TIM2 100ms 周期标志
     │   ├── oled_device.c/h          OLED 驱动（软件 I2C + 显存缓冲）
     │   ├── oled_font.c/h            字库
@@ -65,7 +67,7 @@ STM32-CAN/
     │   ├── can_sm_mid.c/h           Bus-Off 恢复状态机（CanSM 思路）
     │   └── can_timeout_mid.c/h      报文超时监控（运行状态与超时判断）
     └── APP/                         应用层
-        ├── can_app.c/h              CAN 应用：滤波参数计算、发送端/接收端业务
+        ├── can_app.c/h              CAN 应用：滤波参数计算、发送端/接收端业务、ADC 周期上报
         ├── can_test.c/h             测试帧表、按索引发送、帧表长度查询
         └── task.c/h                 任务入口：初始化、按键扫描、鲁棒性任务周期执行、按节点类型分发
 ```
@@ -76,15 +78,16 @@ STM32-CAN/
 
 ```text
 main()
- ├─ MX_GPIO_Init / MX_CAN_Init / MX_TIM2_Init
+ ├─ MX_GPIO_Init / MX_CAN_Init / MX_TIM2_Init / MX_ADC1_Init
  ├─ HAL_TIM_Base_Start_IT(&htim2)
  ├─ vOledInit / Button_Init
- └─ vCanAppInit()
-      ├─ 按 CAN_TEST_PROFILE 填写 CAN_FilterTypeDef
-      ├─ vCanTimeoutInit()
-      └─ vCanDeviceInit()
-           └─ HAL_CAN_ConfigFilter / HAL_CAN_Start
-              / HAL_CAN_ActivateNotification(RX_FIFO0 | BUSOFF | ERROR)
+ ├─ vCanAppInit()
+ │    ├─ 按 CAN_TEST_PROFILE 填写 CAN_FilterTypeDef
+ │    ├─ vCanTimeoutInit()
+ │    └─ vCanDeviceInit()
+ │         └─ HAL_CAN_ConfigFilter / HAL_CAN_Start
+ │            / HAL_CAN_ActivateNotification(RX_FIFO0 | BUSOFF | ERROR)
+ └─ vAdcDeviceInit()                  ADC 校准
 
 while (1) vtask()
  ├─ vBtnExecute()                    按键事件状态机
@@ -124,15 +127,15 @@ can_cfg.h/.c 的只读参数
 
 ### 报文超时监控
 
-`vCanTimeoutUpdate(ID)` 在收到目标报文时刷新最后接收时刻并清除超时标志（喂狗）；`vCanTimeoutTask()` 每圈判断"当前 tick − 最后接收 tick > 阈值"置超时标志；应用层 `ucCanTimeoutGetFlag(ID)` 查询并在 OLED 第 5 行显示 `TIMEOUT!`。判断使用无符号减法，对 tick 溢出安全；`ucIsStarted` 防止上电未收到首帧时误报。配置（ID/阈值）在 `can_cfg`，状态在 `can_timeout_mid`，两者按下标一一对应。
+`vCanTimeoutUpdate(ID)` 在收到目标报文时刷新最后接收时刻并清除超时标志（喂狗）；`vCanTimeoutTask()` 每圈判断"当前 tick − 最后接收 tick > 阈值"置超时标志；应用层 `ucCanTimeoutGetFlag(ID)` 查询并在对应行的数据区显示 `T-OUT`。当前监控两项：周期报文 `0x0789AB0F`（`Tim:` 行）和 ADC 上报帧 `0x400`（`Adc:` 行）。判断使用无符号减法，对 tick 溢出安全；`ucIsStarted` 防止上电未收到首帧时误报。配置（ID/阈值）在 `can_cfg`，状态在 `can_timeout_mid`，两者按下标一一对应。
 
 ### 报文超时监控与扩监控项
 
-扩一个监控项（例：给 ADC 周期上报帧 `0x400`，100ms 周期，加超时监控）：
+`0x400` ADC 上报帧就是按下面三步接入的（`CAN_TIMEOUT_MONITOR_NUM` 已为 2）。再扩一项（例：新增温度帧 `0x401`）：
 
-1. `can_cfg.h`：新增 `#define CAN_ID_ADC_MSG 0x400U`、`#define CAN_TIMEOUT_ADC_MS 300U`，并把 `CAN_TIMEOUT_MONITOR_NUM` 从 `1U` 改为 `2U`；
-2. `can_cfg.c`：在 `CanTimeoutConfigList[]` 末尾追加一行 `{ CAN_ID_ADC_MSG, CAN_TIMEOUT_ADC_MS },`；
-3. `can_app.c` 接收任务：在 `if(stAppHeader.RTR == CAN_RTR_DATA)` 内补一条 ID 匹配并喂狗的分支；在现有 `TIMEOUT!` 检查块旁边补一段 `ucCanTimeoutGetFlag(CAN_ID_ADC_MSG)` 的显示（注意 else 分支用空格覆盖，否则文字残留）。
+1. `can_cfg.h`：新增 `#define CAN_ID_TEMP_MSG 0x401U`、`#define CAN_TIMEOUT_TEMP_MS 300U`，并把 `CAN_TIMEOUT_MONITOR_NUM` 从 `2U` 改为 `3U`；
+2. `can_cfg.c`：在 `CanTimeoutConfigList[]` 末尾追加一行 `{ CAN_ID_TEMP_MSG, CAN_TIMEOUT_TEMP_MS },`；
+3. `can_app.c` 接收任务：在取帧循环里补一条 ID 匹配并 `vCanTimeoutUpdate` 的分支；超时显示用 `ucCanTimeoutGetFlag(CAN_ID_TEMP_MSG)` 写到独立行或独立区域，并用定宽字符串保证恢复后能完整覆盖超时标记。
 
 `can_timeout_mid.c` 不需要任何改动。表加了行但忘记同步 `CAN_TIMEOUT_MONITOR_NUM`，会在编译期报 "too many initializers"；只改 `NUM` 不补表则生成全零空条目，`ucIsStarted` 永不置 1，不会误报。
 
@@ -156,6 +159,8 @@ can_cfg.h/.c 的只读参数
 | `CanSMBorTimeL2` | 2000 ms | L2 慢恢复等待时间 |
 | `CanSMBorTimeTxEnsured` | 300 ms | 恢复后观察窗口 |
 | `CAN_ID_TIMING_MSG` / `CAN_TIMEOUT_TIMING_MS` | `0x0789AB0F` / 300 ms | 超时监控表条目（周期报文） |
+| `CAN_ID_ADC_MSG` / `CAN_TIMEOUT_ADC_MS` | `0x400` / 300 ms | 超时监控表条目（ADC 周期上报帧） |
+| `CAN_TIMEOUT_MONITOR_NUM` | 2 | 监控表条目数量 |
 | `RX_QUEUE_SIZE` | 8 | 接收环形队列深度（`can_cfg.h`，取值 2~255） |
 
 常用固件组合：
@@ -167,11 +172,11 @@ can_cfg.h/.c 的只读参数
 | 滤波实验 | A（发送板） | 目标测试配置 | `SENDER` |
 | 滤波实验 | B（被测接收板） | 与 A 相同的测试配置 | `RECEIVER` |
 
-工程默认值是 `ALL_PASS + RECEIVER`，直接编译得到全通接收板固件。改宏之后必须重新编译再烧录。
+工程当前设置为 `ALL_PASS + SENDER`，直接编译得到全通发送板固件；烧接收板需把 `CAN_NODE_ROLE` 改为 `RECEIVER` 重新编译。改宏之后必须重新编译再烧录。
 
 ---
 
-## 4. 全通模式：四种通信行为
+## 4. 全通模式：五种通信行为
 
 全通配置下，发送板使用业务帧，不使用测试帧表；接收板按 ID 和帧类型分类显示。
 
@@ -181,22 +186,26 @@ can_cfg.h/.c 的只读参数
 | 2 | 触发发送 | A 板 | 单击 PB11（KEY_UP） | `0x555` 标准数据帧，DLC=4 | 两板 `Tri:` 显示一致 |
 | 3 | 请求—应答（数据帧请求） | B 板 | 单击 PB1（KEY_DOWN） | `0x777` 标准数据帧，DLC=0，仅作触发 | A 板回 `0x666` 标准数据帧，两板 `Req:` 更新 |
 | 4 | 请求—应答（遥控帧请求） | B 板 | 单击 PB11（KEY_UP） | `0x789` 标准遥控帧，DLC=0 | A 板同样回 `0x666`，两板 `Req:` 更新 |
+| 5 | ADC 周期上报 | A 板 | 上电自动，TIM2 每 100ms | `0x400` 标准数据帧，DLC=3（码值低字节在前，第 3 字节为序号） | B 板 `Adc:` 行显示十进制码值 |
 
 显示细节：
 
-- `Tim:`/`Tri:`/`Req:` 三条发送流各用独立数据缓冲、各自递增，互不影响；
+- `Tim:`/`Tri:`/`Req:` 三条发送流各用独立数据缓冲、各自递增，互不影响；ADC 帧用独立缓冲，每次上报覆盖为本次采样值；
 - 顺序固定为"先自增 → 再发送 → 再刷新"，发送板显示的就是实际发出的帧内容，两板数值一致；
-- 发送失败（邮箱满或控制器未就绪）时：定时帧丢弃该周期，下一周期发送新值；触发/请求帧保持待发状态，重试的是已经准备好的同一帧数据，计数不会随重试累加。
+- 发送失败（邮箱满或控制器未就绪）时：定时帧和 ADC 帧丢弃该周期，下一周期发送新值；触发/请求帧保持待发状态，重试的是已经准备好的同一帧数据，计数不会随重试累加；
+- ADC 值发送板和接收板都显示 12 位十进制码值，5 字符定宽，便于两板逐值对照。
 
 ### OLED 布局
 
 ```
 Tx:  / Rx:      第 1 行 (y=0)
-Tim:            第 2 行 (y=12)
+Tim:            第 2 行 (y=12)   超时后数据区显示 "T-OUT"
 Req:            第 3 行 (y=24)
 Tri:            第 4 行 (y=36)
-（接收板）       第 5 行 (y=48)：x=6 起超时显示 "TIMEOUT!"，收到报文恢复后清除
+Adc:            第 5 行 (y=48)   十进制码值（5 字符定宽）；超时后同一区域显示 "T-OUT"
 ```
+
+超时标记写在各自行的数据区，恢复后数据会覆盖标记，不需要额外的清除分支。
 
 ### 全通联调步骤
 
@@ -204,7 +213,7 @@ Tri:            第 4 行 (y=36)
 2. A 板开始定时发送，两板 `Tim:` 行数值一致并递增。
 3. 按 A 板 PB11，两板 `Tri:` 行更新。
 4. 按 B 板 PB1（数据帧请求）或 PB11（遥控帧请求），A 板均回 `0x666`，两板 `Req:` 行更新。
-5. 超时实验：拔掉 B 板 CANH 线（或停掉 A 板）→ 约 300ms 后 `Tim:` 停止、第 5 行出现 `TIMEOUT!`；恢复接线后文字清除、计数继续。
+5. 超时实验：拔掉 B 板 CANH 线（或停掉 A 板）→ 约 300ms 后 `Tim:` 和 `Adc:` 两行数据区都变成 `T-OUT`；恢复接线后两行恢复为最新数据。ADC 帧单独停发时只有 `Adc:` 行超时，可用来验证两条监控项互不影响。
 
 ---
 
@@ -256,7 +265,7 @@ B 板（RECEIVER + 同一测试配置）
 2. 反复按 A 板 PB11 直到帧表轮完一遍，记录 B 板显示的 ID 与计数。
 3. 与 §5 的预期通过集合对照。
 
-注意：`ALL_PASS` 接收分支只显示三种业务帧，不能当作"显示全部帧"的对照板。需要对照时用 CAN 分析仪，或给显示分支补通用模式。
+注意：`ALL_PASS` 接收分支只按固定 ID 显示业务帧（定时、触发、应答、ADC），不能当作"显示全部帧"的对照板。需要对照时用 CAN 分析仪，或给显示分支补通用模式。
 
 ---
 
@@ -270,18 +279,18 @@ B 板（RECEIVER + 同一测试配置）
 
 - 新增 `.c/.h` 必须手动加入 Keil 工程分组（`User/Config` 已在头文件搜索路径）。
 - 工程由 CubeMX 生成，用户代码位于 `USER CODE BEGIN/END` 标记内，重新生成 `.ioc` 不覆盖用户代码。
-- 程序占用（发送节点 + `ALL_PASS` 配置实测）：Code 11,996 B、RO-data 6,416 B、RW-data 204 B、ZI-data 2,628 B。
+- 程序占用（发送节点 + `ALL_PASS` 配置 + ADC 上报实测）：Code 15,076 B、RO-data 6,440 B、RW-data 224 B、ZI-data 2,688 B。
 - 编译可能出现条件编译下业务帧结构体未引用（`#177-D`）等警告，不影响功能。
 
 ---
 
 ## 8. 已知限制与后续计划
 
-已实现：ABOM=0 软件 Bus-Off 检测与 L1/L2 恢复、ESR/TEC/LEC 快照、报文超时监控（覆盖周期报文 `0x0789AB0F`）、8 帧接收环形队列（满时丢最新帧）、发送结果检查与失败计数、恢复前中止挂起邮箱。
+已实现：ABOM=0 软件 Bus-Off 检测与 L1/L2 恢复、ESR/TEC/LEC 快照、报文超时监控（同时覆盖周期报文 `0x0789AB0F` 和 ADC 上报帧 `0x400`，各自独立判断）、ADC1_IN0 轮询采样与 `0x400` 周期上报、8 帧接收环形队列（满时丢最新帧）、发送结果检查与失败计数、恢复前中止挂起邮箱。
 
 - [ ] Bus-Off 恢复不重发故障期间丢弃的报文；故障期间发送失败的事件帧由应用层重试（当前触发/请求帧会一直重试到入邮箱成功）→ 后续补发送队列
 - [ ] 接收队列溢出次数可用 `ulDeviceCan_GetRxOverflowCount()` 查询、发送失败次数可用 `ulDeviceCan_GetTxFailCount()` 查询，两者尚未在 OLED 上显示
-- [ ] 超时监控目前只覆盖 1 个 ID，扩监控项步骤见 §2 → ADC 上报帧接入时按流程添加
+- [ ] ADC 帧第 3 字节的序号目前只发送不统计，接收端尚未用序号计算丢帧数
 - [ ] 滤波配置的通过集合尚未台面实测回填，`16BIT_MASK` 的遥控帧匹配位和 `16BIT_LIST` 的 `0x234` 列表项需实测确认
 - [ ] 全通接收分支不能作为滤波实验的全量显示对照 → 补通用显示模式或使用 CAN 分析仪
 - [ ] 帧数据完整性只校验 DLC，没有 CRC 或帧计数域

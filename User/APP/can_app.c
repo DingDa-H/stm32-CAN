@@ -7,6 +7,7 @@
 #include "project.h"             							// 为了 CAN_TEST_PROFILE 等宏
 #include "stm32f1xx_hal.h"
 #include <stdio.h>
+#include "adc_device.h"
 #include "can_timeout_mid.h"
 // 业务层发送缓存（与测试层隔离开）：三类发送帧各用独立缓冲，Tim/Tri/Req 各自递增、互不影响
 static uint8_t s_aucAppTxData_Timing[8]  = {0x11, 0x22, 0x33, 0x44};
@@ -64,6 +65,17 @@ static stCanTxParamTdf stTxMsg_Request_DATA =
 	.ulID    = 0x666,
 	.ucDLC   = 4,
 	.pucData = s_aucAppTxData_Request,
+	.ulIDE   = CAN_ID_STD,
+	.ulRTR   = CAN_RTR_DATA,
+};
+
+// ADC 周期上报帧：Data[0..1]=12 位码值（小端），Data[2]=帧序号
+static uint8_t s_aucAppTxData_Adc[8];
+static stCanTxParamTdf stTxMsg_Adc =
+{
+	.ulID    = CAN_ID_ADC_MSG,
+	.ucDLC   = 3,
+	.pucData = s_aucAppTxData_Adc,
 	.ulIDE   = CAN_ID_STD,
 	.ulRTR   = CAN_RTR_DATA,
 };
@@ -144,7 +156,7 @@ void vCanAppInit(void)
  */
 void vCanAppSenderTask(void)
 {
-	// 用于接收队列的数据
+	// 用于接收 队列的数据
 	stCanRxFrameTdf stFrame; 	
 #if (CAN_TEST_PROFILE == CAN_TEST_ALL_PASS)
 	// 1. 定时发送
@@ -156,7 +168,8 @@ void vCanAppSenderTask(void)
 		vOledWriteStringToBuffer(6,12,(uint8_t*)"Tim:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-
+		vOledWriteStringToBuffer(6,48,(uint8_t*)"Adc:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED); 
+		
 		s_aucAppTxData_Timing[0]++;
 		s_aucAppTxData_Timing[1]++;
 		s_aucAppTxData_Timing[2]++;
@@ -165,8 +178,25 @@ void vCanAppSenderTask(void)
 		{
 			vOledWriteHexToBuffer(30,12,stTxMsg_Timing.pucData,stTxMsg_Timing.ucDLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 		}
+		
+		/*-----------------------------------------------------------*/
+		// ADC 周期上报（复用 100ms 节拍）
+		uint16_t usAdcVal = usAdcDeviceGetValue();
+		s_aucAppTxData_Adc[0] = (uint8_t)(usAdcVal & 0xFFU);
+		s_aucAppTxData_Adc[1] = (uint8_t)(usAdcVal >> 8);
+		s_aucAppTxData_Adc[2]++;			/* 帧序号：接收端可据此统计丢帧 */
+
+		if (ucDeviceCan_Transmit(&stTxMsg_Adc) == 0U)
+		{
+			char acAdcLine[8];
+			snprintf(acAdcLine, sizeof(acAdcLine), "%5u", usAdcVal);		/* 5 字符定宽，避免残留旧数字 */
+			vOledWriteStringToBuffer(30,48,(uint8_t*)acAdcLine,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+		}
+		/*-----------------------------------------------------------*/
+		
 		vOledRefreshFromBuffer(OLED);
 	}
+	
 	
 	// 2. 按键触发发送
 	emButEventTdf emEventUp = emBtnGetCurEvent(BUTTON_UP);
@@ -282,7 +312,8 @@ void vCanAppReceiverTask(void)
 	vOledWriteStringToBuffer(6,12,(uint8_t*)"Tim:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 	vOledWriteStringToBuffer(6,36,(uint8_t*)"Tri:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 	vOledWriteStringToBuffer(6,24,(uint8_t*)"Req:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
-
+	vOledWriteStringToBuffer(6,48,(uint8_t*)"Adc:",emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
+	
 	while (ucDeviceCan_ReadRxFrame(&stFrame) == 1U)
 	{
 		if(stFrame.stHeader.RTR == CAN_RTR_DATA)
@@ -300,15 +331,32 @@ void vCanAppReceiverTask(void)
 			{
 				vOledWriteHexToBuffer(30,24,stFrame.aucData,stFrame.stHeader.DLC,emOledFontSize_6x12,emOledPixelShowMode_Positive,OLED);
 			}
+			// ---- 解析 0x400 ADC 报文 ----
+			if (stFrame.stHeader.IDE == CAN_ID_STD && stFrame.stHeader.StdId == CAN_ID_ADC_MSG)
+			{
+				if (stFrame.stHeader.DLC >= 2U)                      /* 先校验长度再取值 */
+				{
+					vCanTimeoutUpdate(CAN_ID_ADC_MSG);               /* 喂狗 */
+					uint16_t usVal = (uint16_t)stFrame.aucData[0]
+								   | ((uint16_t)stFrame.aucData[1] << 8);
+					char acAdcLine[8];
+					/* 5 字符定宽：数值位数变化或超时恢复时都能完整覆盖旧内容 */
+					snprintf(acAdcLine, sizeof(acAdcLine), "%5u", usVal);
+					vOledWriteStringToBuffer(30, 48, (uint8_t*)acAdcLine, emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
+				}
+			}
+			// ---------------------------------
 		}
 	}
 	if (ucCanTimeoutGetFlag(CAN_ID_TIMING_MSG) == 1U)
 	{
-		vOledWriteStringToBuffer(6, 48, (uint8_t*)"TIMEOUT!", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
+		/* 超时标记写入 Tim 行数据区；恢复后 4 字节十六进制会完整覆盖 */
+		vOledWriteStringToBuffer(30, 12, (uint8_t*)"T-OUT", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
 	}
-	else
+	if (ucCanTimeoutGetFlag(CAN_ID_ADC_MSG) == 1U)
 	{
-		vOledWriteStringToBuffer(6, 48, (uint8_t*)"        ", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);   /* 清除残留 */
+		/* 超时标记写入 Adc 行数据区；与正常显示的 5 字符定宽一致，互相覆盖 */
+		vOledWriteStringToBuffer(30, 48, (uint8_t*)"T-OUT", emOledFontSize_6x12, emOledPixelShowMode_Positive, OLED);
 	}
 	vOledRefreshFromBuffer(OLED);
 

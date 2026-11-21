@@ -22,6 +22,8 @@ stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_dma_ex.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_can.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h
+stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc.h
+stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_adc_ex.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
@@ -30,4 +32,4 @@ stm32-can\button_mid.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex
 stm32-can\button_mid.o: D:\keil5\ARM\ARMCC\Bin\..\include\string.h
 stm32-can\button_mid.o: ..\User\Middle\button_mid.h
 stm32-can\button_mid.o: ../User/Device/botton.h
-stm32-can\button_mid.o: ..\User\Config\project.h
+stm32-can\button_mid.o: ../User/Config/project.h

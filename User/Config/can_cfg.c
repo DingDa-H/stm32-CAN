@@ -15,4 +15,6 @@ const uint32_t CanSMBorTimeTxEnsured = 300U;
 const stCanTimeoutConfigTdf CanTimeoutConfigList[CAN_TIMEOUT_MONITOR_NUM] =
 {
     { CAN_ID_TIMING_MSG, CAN_TIMEOUT_TIMING_MS },   // 周期报文 0x0789AB0F
+	{ CAN_ID_ADC_MSG,    CAN_TIMEOUT_ADC_MS },		// 监控adc 0x400
+
 };

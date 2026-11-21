@@ -20,8 +20,10 @@ typedef struct
 
 /* ============ 报文超时监控配置 ============ */
 #define CAN_ID_TIMING_MSG        0x0789AB0F    /* 被监控的周期报文 ID（收发两端共用唯一定义处） */
-#define CAN_TIMEOUT_TIMING_MS    300U          /* 超时阈值（ms）：100ms 周期允许连丢 3 帧 */
-#define CAN_TIMEOUT_MONITOR_NUM  1U            /* 监控表条目数量 */
+#define CAN_TIMEOUT_TIMING_MS    300U          /* 超时阈值（ms）：100ms 周期允许连丢 2 帧，第 3 帧缺失即报 */
+#define CAN_TIMEOUT_MONITOR_NUM  2U            /* 监控表条目数量 */
+#define CAN_ID_ADC_MSG           0x400U        /* ADC 周期上报帧（100ms 周期） */
+#define CAN_TIMEOUT_ADC_MS       300U          /* 超时阈值（ms）：100ms 周期允许连丢 2 帧 */
 
 /* 监控只读配置（Flash）；运行期状态留在 can_timeout_mid.c 的 RAM 数组，配置与状态分家 */
 typedef struct
@@ -34,5 +36,7 @@ extern const stCanTimeoutConfigTdf CanTimeoutConfigList[CAN_TIMEOUT_MONITOR_NUM]
 
 /* ============ CAN 接收队列配置 ============ */
 #define RX_QUEUE_SIZE            8U            /* 接收环形队列深度（取值范围 2~255，与下标类型一致） */
+
+
 
 #endif /* __CAN_CFG_H */
